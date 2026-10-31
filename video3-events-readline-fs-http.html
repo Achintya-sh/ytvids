@@ -1,0 +1,1891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Video 3: Node.js events, readline, fs and http</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EEF1F6; --surface:#FFFFFF; --surface-2:#F6F8FB; --ink:#17202D; --muted:#566174; --line:#D6DCE6;
+  --l-found:#2E5BDA; --l-node:#2B8A45; --l-express:#C2410C; --l-arch:#7C3AED; --l-prisma:#0E7490; --l-exam:#B91C4B;
+  --good:#1F8A47; --good-bg:#E5F5EB; --bad:#C0352F; --bad-bg:#FBE9E8; --warn:#9A6400; --warn-bg:#FFF3D6;
+  --idea-bg:#E8EEFD; --anal-bg:#F2EBFD; --code-bg:#1A2030; --code-ink:#E4E9F2; --code-c:#7F8BA3; --code-s:#9BD58A; --code-k:#F2A766; --code-n:#E7C66B; --code-f:#8EC5FF;
+  --hl:#FFE58A; --on-lc:#FFFFFF;
+  color-scheme: light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0F131A; --surface:#171C25; --surface-2:#1D2330; --ink:#E6EAF1; --muted:#9AA4B5; --line:#2A3241;
+    --l-found:#7B9BFF; --l-node:#4FC572; --l-express:#FB8A4C; --l-arch:#B38BFF; --l-prisma:#3CC3DB; --l-exam:#FF6B95;
+    --good:#5BD38A; --good-bg:#15301F; --bad:#FF7A72; --bad-bg:#3A1A19; --warn:#F5C04E; --warn-bg:#3A2D0E;
+    --idea-bg:#1A2444; --anal-bg:#26193F; --code-bg:#0B0E15; --hl:#5A4A0B; --on-lc:#0F131A;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0F131A; --surface:#171C25; --surface-2:#1D2330; --ink:#E6EAF1; --muted:#9AA4B5; --line:#2A3241;
+  --l-found:#7B9BFF; --l-node:#4FC572; --l-express:#FB8A4C; --l-arch:#B38BFF; --l-prisma:#3CC3DB; --l-exam:#FF6B95;
+  --good:#5BD38A; --good-bg:#15301F; --bad:#FF7A72; --bad-bg:#3A1A19; --warn:#F5C04E; --warn-bg:#3A2D0E;
+  --idea-bg:#1A2444; --anal-bg:#26193F; --code-bg:#0B0E15; --hl:#5A4A0B; --on-lc:#0F131A;
+  color-scheme: dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:calc(env(safe-area-inset-top,0px) + 16px); scroll-behavior:smooth}
+@media (prefers-reduced-motion: reduce){html{scroll-behavior:auto} *{animation:none!important;transition:none!important}}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:17px;line-height:1.6;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:"Bricolage Grotesque","Atkinson Hyperlegible",system-ui,sans-serif;line-height:1.15;margin:0}
+code,pre,kbd{font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+a{color:var(--l-found)}
+:focus-visible{outline:3px solid var(--l-found);outline-offset:2px;border-radius:4px}
+img,svg{max-width:100%}
+
+/* ---------- layout ---------- */
+.shell{display:grid;grid-template-columns:290px minmax(0,1fr);min-height:100%}
+.rail{position:sticky;top:env(safe-area-inset-top,0px);height:100vh;height:100dvh;overflow-y:auto;background:var(--surface);border-right:1px solid var(--line);padding:22px 18px 40px}
+.main{padding:28px clamp(16px,4vw,56px) 120px;min-width:0}
+.col{max-width:780px;margin:0 auto}
+.rail-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:14px}
+.rail-head strong{font-family:"Bricolage Grotesque",sans-serif;font-size:18px}
+.theme-btn{border:1px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:8px;padding:5px 9px;font:inherit;font-size:14px;cursor:pointer}
+.progress{font-size:14px;color:var(--muted);margin-bottom:6px}
+.pbar{height:8px;border-radius:99px;background:var(--surface-2);border:1px solid var(--line);overflow:hidden;margin-bottom:18px}
+.pbar i{display:block;height:100%;width:0;background:var(--l-node);transition:width .4s}
+
+/* transit map nav */
+.line-group{position:relative;margin:0 0 6px}
+.line-group h4{font-size:13px;font-weight:700;color:var(--lc);margin:12px 0 4px 2px;letter-spacing:.01em}
+.stations{list-style:none;margin:0;padding:0;position:relative}
+.stations::before{content:"";position:absolute;left:11px;top:10px;bottom:10px;width:5px;border-radius:3px;background:var(--lc);opacity:.85}
+.stations a{display:flex;align-items:center;gap:10px;padding:5px 6px;text-decoration:none;color:var(--ink);font-size:14.5px;border-radius:8px;position:relative}
+.stations a:hover{background:var(--surface-2)}
+.stations a.active{background:var(--surface-2);font-weight:700}
+.dot{flex:0 0 auto;width:17px;height:17px;border-radius:50%;background:var(--surface);border:4px solid var(--lc);position:relative;z-index:1}
+.stations a.done .dot{background:var(--lc)}
+.stations a.done .dot::after{content:"";position:absolute;left:3px;top:0px;width:4px;height:7px;border:solid var(--surface);border-width:0 2px 2px 0;transform:rotate(45deg)}
+.num{color:var(--muted);font-variant-numeric:tabular-nums;font-size:12.5px;min-width:18px}
+
+.menu-btn{display:none}
+@media (max-width:900px){
+  .shell{grid-template-columns:1fr}
+  .rail{position:fixed;inset:0 auto 0 0;width:min(86vw,320px);z-index:50;transform:translateX(-105%);transition:transform .25s;padding-top:calc(22px + env(safe-area-inset-top,0px));box-shadow:0 0 0 100vmax transparent}
+  .rail.open{transform:none;box-shadow:0 0 0 100vmax rgba(0,0,0,.4)}
+  .menu-btn{display:inline-flex;position:fixed;right:14px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:40;align-items:center;gap:8px;border:0;border-radius:99px;padding:12px 18px;background:var(--ink);color:var(--bg);font:inherit;font-weight:700;box-shadow:0 6px 20px rgba(0,0,0,.25);cursor:pointer}
+  .main{padding-top:18px}
+}
+
+/* ---------- hero ---------- */
+.hero{padding:26px 0 8px}
+.hero h1{font-size:clamp(34px,6vw,58px);font-weight:800;letter-spacing:-.02em;margin-bottom:14px}
+.hero p.lede{font-size:19px;color:var(--muted);max-width:62ch;margin:0 0 20px}
+.hero-map{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px;overflow-x:auto}
+.hero-map svg{display:block;min-width:640px}
+
+/* ---------- topic sections ---------- */
+.topic{padding:56px 0 8px;border-top:1px solid var(--line);margin-top:48px}
+.topic-head{display:flex;gap:16px;align-items:flex-start;margin-bottom:18px}
+.badge{flex:0 0 auto;width:52px;height:52px;border-radius:50%;border:6px solid var(--lc);display:grid;place-items:center;font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:18px;background:var(--surface)}
+.topic-head .meta{font-size:14px;color:var(--lc);font-weight:700;margin-bottom:2px}
+.topic h2{font-size:clamp(26px,4vw,36px);font-weight:800;letter-spacing:-.01em}
+.topic h3{font-size:22px;margin:34px 0 10px;font-weight:700}
+.topic h4{font-size:17px;margin:20px 0 6px}
+.topic p,.topic li{max-width:72ch;overflow-wrap:break-word}
+.col,.topic,.box,.lab,.quiz,.prob{min-width:0}
+.topic ul,.topic ol{padding-left:22px}
+.topic li{margin:4px 0}
+.why{font-size:15px;color:var(--muted);margin:-6px 0 12px}
+
+/* callouts: label is visible text so meaning never relies on color */
+.box{border-radius:12px;padding:14px 16px;margin:16px 0;border:1px solid var(--line);background:var(--surface)}
+.box > .lbl{display:flex;align-items:center;gap:8px;font-weight:700;font-size:15px;margin-bottom:4px}
+.box > .lbl::before{content:attr(data-ico);font-size:16px}
+.box p:last-child,.box ul:last-child{margin-bottom:0}
+.box p:first-of-type{margin-top:0}
+.idea{background:var(--idea-bg);border-color:transparent}
+.analogy{background:var(--anal-bg);border-color:transparent}
+.trap{background:var(--bad-bg);border-color:transparent}
+.trap > .lbl{color:var(--bad)}
+.tip{background:var(--good-bg);border-color:transparent}
+.tip > .lbl{color:var(--good)}
+.warnbox{background:var(--warn-bg);border-color:transparent}
+.warnbox > .lbl{color:var(--warn)}
+.remember{border:2px dashed var(--lc);background:var(--surface)}
+
+/* code */
+pre{background:var(--code-bg);color:var(--code-ink);padding:14px 16px;border-radius:10px;overflow-x:auto;font-size:14px;line-height:1.55;margin:12px 0;position:relative}
+pre .fname{display:block;color:var(--code-c);font-size:12px;margin:-4px 0 8px;font-family:"JetBrains Mono",monospace}
+:not(pre) > code{overflow-wrap:anywhere;background:var(--surface-2);border:1px solid var(--line);border-radius:5px;padding:1px 5px;font-size:.88em}
+.tk-c{color:var(--code-c);font-style:italic}.tk-s{color:var(--code-s)}.tk-k{color:var(--code-k)}.tk-n{color:var(--code-n)}.tk-f{color:var(--code-f)}
+pre.out{background:var(--surface-2);color:var(--ink);border:1px solid var(--line)}
+pre.out::before{content:"Output";display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-family:"Atkinson Hyperlegible",sans-serif;font-weight:700}
+.copy{position:absolute;top:8px;right:8px;border:1px solid #3a4459;background:#252d40;color:#cfd7e6;border-radius:6px;font-size:12px;padding:3px 8px;cursor:pointer;font-family:"Atkinson Hyperlegible",sans-serif}
+
+/* line-by-line annotation */
+.anno{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;margin:8px 0 16px;font-size:15.5px}
+.anno code{white-space:nowrap}
+@media (max-width:640px){.anno{grid-template-columns:1fr;gap:2px}.anno > span:nth-child(odd){text-align:left;margin-top:8px}.anno code{white-space:normal}}
+.anno > span:nth-child(odd){text-align:right}
+
+/* tables */
+.tbl-wrap{overflow-x:auto;margin:12px 0}
+table{border-collapse:collapse;width:100%;font-size:15px;background:var(--surface);border-radius:10px;overflow:hidden}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:var(--surface-2);font-weight:700}
+
+/* interactive widgets */
+.lab{border:2px solid var(--lc);border-radius:14px;background:var(--surface);margin:22px 0;overflow:hidden}
+.lab-head{background:var(--lc);color:var(--on-lc);padding:8px 14px;font-weight:700;font-size:15px;display:flex;gap:8px;align-items:center}
+.lab-head::before{content:"🧪"}
+.lab-body{padding:14px}
+.lab-body p.how{margin:0 0 10px;color:var(--muted);font-size:15px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}
+input[type=text],select,textarea{font:inherit;font-size:15px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--ink);min-width:0}
+input[type=text]{flex:1 1 220px}
+.btn{font:inherit;font-size:15px;font-weight:700;padding:7px 13px;border-radius:8px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);cursor:pointer}
+.btn:hover{border-color:var(--lc)}
+.btn.primary{background:var(--lc);border-color:var(--lc);color:var(--on-lc)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.console{background:var(--code-bg);color:var(--code-ink);font-family:"JetBrains Mono",monospace;font-size:13.5px;border-radius:10px;padding:10px 12px;min-height:60px;white-space:pre-wrap;overflow-x:auto;margin-top:8px}
+.console .err{color:#FF8F87}.console .ok{color:#9BD58A}.console .dim{color:var(--code-c)}.console .ylw{color:#E7C66B}
+.chip{display:inline-block;padding:3px 9px;border-radius:99px;border:1px solid var(--line);font-family:"JetBrains Mono",monospace;font-size:13px;background:var(--surface-2)}
+.chip.hot{background:var(--hl);border-color:transparent}
+.stepper .cap{min-height:3.2em;margin:10px 0 0;font-size:15.5px}
+.stepper .ctrl{display:flex;gap:8px;align-items:center;margin-top:8px}
+.stepper .count{font-size:14px;color:var(--muted)}
+
+/* quiz */
+.quiz{border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:6px 16px 14px;margin:24px 0}
+.quiz > .qhead{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 0}
+.quiz > .qhead strong{font-family:"Bricolage Grotesque",sans-serif;font-size:19px}
+.qscore{font-size:14px;color:var(--muted)}
+.q{padding:12px 0;border-top:1px solid var(--line)}
+.q .qt{overflow-wrap:anywhere;font-weight:700;margin-bottom:8px}
+.q pre{margin:6px 0 10px}
+.opts{display:grid;gap:6px}
+.opt{text-align:left;font:inherit;font-size:15.5px;padding:8px 12px;border-radius:9px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);cursor:pointer;display:flex;gap:10px}
+.opt > span:last-child{min-width:0;overflow-wrap:anywhere}
+.opt .k{font-weight:700;color:var(--muted)}
+.opt:hover:not(:disabled){border-color:var(--lc)}
+.opt.right{background:var(--good-bg);border-color:var(--good)}
+.opt.wrong{background:var(--bad-bg);border-color:var(--bad)}
+.opt:disabled{cursor:default}
+.opt.right::after{content:"✓ correct";margin-left:auto;color:var(--good);font-weight:700;font-size:13px;white-space:nowrap}
+.opt.wrong::after{content:"✗ your pick";margin-left:auto;color:var(--bad);font-weight:700;font-size:13px;white-space:nowrap}
+.explain{display:none;margin-top:8px;font-size:15px;padding:8px 12px;border-left:4px solid var(--lc);background:var(--surface-2);border-radius:0 8px 8px 0}
+.q.answered .explain{display:block}
+
+.done-row{display:flex;justify-content:flex-end;margin:20px 0 0}
+.done-btn{font:inherit;font-weight:700;padding:10px 16px;border-radius:10px;border:2px solid var(--lc);background:var(--surface);color:var(--ink);cursor:pointer}
+.done-btn.on{background:var(--lc);color:var(--on-lc)}
+
+/* practice problems */
+details{border:1px solid var(--line);border-radius:10px;background:var(--surface);margin:8px 0;padding:0 14px}
+details > summary{cursor:pointer;padding:10px 0;font-weight:700}
+details[open]{padding-bottom:12px}
+.prob{border:1px solid var(--line);border-left:6px solid var(--lc);border-radius:12px;background:var(--surface);padding:14px 16px;margin:18px 0}
+.prob h4{margin:0 0 6px;font-size:19px}
+.prob .lvl{font-size:13px;color:var(--muted);font-weight:700}
+
+/* diagrams */
+.fig{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px;margin:16px 0;overflow-x:auto}
+.fig svg{display:block;margin:0 auto}
+.fig figcaption{font-size:14px;color:var(--muted);margin-top:6px;text-align:center}
+.fig text{font-family:"Atkinson Hyperlegible",sans-serif;fill:var(--ink)}
+.fig .mono{font-family:"JetBrains Mono",monospace}
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:640px){.cmp{grid-template-columns:1fr}}
+.cmp > div{min-width:0;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--surface)}
+.cmp h4{margin-top:0}
+.kbd{border:1px solid var(--line);border-bottom-width:3px;border-radius:6px;padding:0 6px;font-size:13px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.plan{list-style:none;padding:0!important;margin:12px 0;border-left:4px solid var(--l-exam)}
+.plan li{padding:6px 0 6px 16px;position:relative;max-width:none!important}
+.plan li b{display:inline-block;min-width:118px}
+#readBar{position:fixed;left:0;right:0;top:env(safe-area-inset-top,0px);height:3px;background:var(--l-found);transform-origin:0 50%;transform:scaleX(0);z-index:60;pointer-events:none}
+#searchIn{width:100%;font:inherit;font-size:15px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--ink)}
+.search-msg{font-size:13px;color:var(--muted);min-height:1.3em;margin:4px 0 8px}
+#quickBtn{width:100%;margin:0 0 12px;text-align:left;font-weight:700}
+#quickBtn[aria-pressed="true"]{background:var(--l-exam);border-color:var(--l-exam);color:var(--on-lc)}
+body.quick .topic > :not(.topic-head):not(.idea):not(.trap):not(.remember):not(.warnbox):not(.recipe):not(.done-row){display:none}
+body.quick #x3 > *{display:revert}
+body.quick #x1, body.quick #x2, body.quick #x4, body.quick #x5, body.quick #x7, body.quick #x6, body.quick .hero, body.quick .col > section.box{display:none}
+body.quick #navLines a[data-id="x1"], body.quick #navLines a[data-id="x2"], body.quick #navLines a[data-id="x4"], body.quick #navLines a[data-id="x5"], body.quick #navLines a[data-id="x7"], body.quick #navLines a[data-id="x6"]{display:none}
+body.quick .topic{padding-top:28px;margin-top:24px}
+.drill{border:1px solid var(--line);border-left:6px solid var(--lc);border-radius:12px;background:var(--surface);padding:12px 14px;margin:14px 0}
+.drill .dh{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--muted);font-weight:700}
+.drill .dp{margin:4px 0 6px;font-weight:700}
+.drill input.blank{font:inherit;font-size:13.5px;min-width:0;flex:none;background:#2A3350;color:#FFFFFF;border:0;border-bottom:2px solid #8EC5FF;border-radius:3px;padding:0 3px;margin:0 1px}
+.drill input.blank:focus{outline:2px solid #8EC5FF;outline-offset:1px}
+.drill input.blank.ok{background:#1C4A2C;border-bottom-color:#5BD38A}
+.drill input.blank.no{background:#5A2020;border-bottom-color:#FF7A72}
+.dfb{font-size:15px;margin-top:6px}
+.dfb .good{color:var(--good);font-weight:700}.dfb .bad{color:var(--bad);font-weight:700}
+.bugbox{background:var(--code-bg);border-radius:10px;padding:8px 0;overflow-x:auto;margin:8px 0}
+.bugline{display:block;min-width:100%;width:max-content;text-align:left;font:13.5px/1.6 "JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;background:transparent;color:var(--code-ink);border:0;border-left:4px solid transparent;padding:1px 12px 1px 6px;cursor:pointer;white-space:pre}
+.bugline:hover:not(:disabled){background:rgba(255,255,255,.07)}
+.bugline:disabled{cursor:default}
+.bugline .ln{color:var(--code-c);display:inline-block;width:2.4em;user-select:none}
+.bugline.hit{background:rgba(91,211,138,.2);border-left-color:#5BD38A}
+.bugline.miss{background:rgba(255,122,114,.2);border-left-color:#FF7A72}
+.hide-print{}
+@media print{.rail,.menu-btn,.lab,.quiz,.done-row{display:none!important}.shell{display:block}.topic{break-before:page}}
+</style>
+<style>
+/* additions for the video subsets */
+.kicker{font-size:15px;font-weight:700;color:var(--l-found);margin:0 0 10px}
+.newtag{display:inline-block;font-family:"Atkinson Hyperlegible",system-ui,sans-serif;font-size:12px;font-weight:700;padding:2px 9px;border-radius:99px;background:var(--lc,var(--l-found));color:var(--on-lc);vertical-align:middle;margin-left:8px;letter-spacing:0}
+.box.plus{border:2px solid var(--lc,var(--l-found));background:var(--surface)}
+.box.plus > .lbl{color:var(--lc,var(--l-found))}
+.plan.chapters{border-left-color:var(--l-found)}
+.plan.chapters li b{min-width:64px;font-variant-numeric:tabular-nums}
+.hero-map svg a{cursor:pointer}
+.hero-map svg a:focus-visible circle{stroke-width:7}
+.elgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:10px}
+@media (max-width:760px){.elgrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.elgrid h4{font-size:13px;margin:0 0 4px;color:var(--muted);min-height:2.6em}
+.elbox{min-height:84px;border:1px dashed var(--line);border-radius:8px;padding:6px;display:flex;flex-direction:column;gap:4px;background:var(--surface-2)}
+.elbox .chip{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.elbox.console{margin-top:0;border-style:solid;background:var(--code-bg);color:var(--code-ink)}
+.next-box{border:2px dashed var(--l-found);background:var(--surface)}
+.src-list{font-size:15px}
+.src-list li{margin:4px 0}
+</style>
+</head>
+<body>
+<div id="readBar" aria-hidden="true"></div>
+<button class="menu-btn" id="menuBtn" aria-controls="rail" aria-expanded="false">☰ Topics</button>
+<div class="shell">
+<nav class="rail" id="rail" aria-label="Topics">
+  <div class="rail-head"><strong>Video 3 map</strong><button class="theme-btn" id="themeBtn" aria-label="Switch light or dark theme">◐ Theme</button></div>
+  <div class="progress" id="progTxt">0 of 0 stops understood</div>
+  <div class="pbar" aria-hidden="true"><i id="progBar"></i></div>
+  <label for="searchIn" class="sr">Search the notes</label>
+  <input type="search" id="searchIn" placeholder="Search this video’s notes" autocomplete="off">
+  <p class="search-msg" id="searchMsg" aria-live="polite"></p>
+  <div id="navLines"></div>
+</nav>
+<main class="main" id="main">
+<div class="col">
+<style>
+[data-group=found]{--lc:var(--l-found)} [data-group=node]{--lc:var(--l-node)} [data-group=express]{--lc:var(--l-express)}
+[data-group=arch]{--lc:var(--l-arch)} [data-group=prisma]{--lc:var(--l-prisma)} [data-group=exam]{--lc:var(--l-exam)}
+</style>
+<header class="hero" id="top">
+  <p class="kicker">Backend from zero, video 3 of 3 (about 20 minutes)</p>
+  <h1>Events, readline, fs and your first HTTP server</h1>
+  <p class="lede">The emit-and-listen pattern that all of Node is built on, terminal input, reading and writing files safely, and a web server with no Express. It ends with a small notes API built only from Node’s own modules.</p>
+  <figure class="hero-map" aria-label="Route map for this video"><svg viewBox="0 0 640 120" width="640" height="120" role="img" aria-label="Stops in this video"><g stroke-width="9" stroke-linecap="round" fill="none"><path d="M50 52 H185" stroke="var(--l-node)"/><path d="M185 52 H320" stroke="var(--l-node)"/><path d="M320 52 H455" stroke="var(--l-node)"/><path d="M455 52 H590" stroke="var(--l-exam)"/></g><g id="mapDots"><a href="#t7"><title>Events</title><circle cx="50" cy="52" r="11" stroke="var(--l-node)" stroke-width="5" data-id="t7" data-col="var(--l-node)" fill="var(--surface)"/><text x="50" y="84" text-anchor="middle" font-size="12" font-weight="700" style="fill:var(--ink)">7</text><text x="50" y="102" text-anchor="middle" font-size="13" style="fill:var(--muted)">Events</text></a><a href="#t8"><title>readline</title><circle cx="185" cy="52" r="11" stroke="var(--l-node)" stroke-width="5" data-id="t8" data-col="var(--l-node)" fill="var(--surface)"/><text x="185" y="84" text-anchor="middle" font-size="12" font-weight="700" style="fill:var(--ink)">8</text><text x="185" y="102" text-anchor="middle" font-size="13" style="fill:var(--muted)">readline</text></a><a href="#t9"><title>fs</title><circle cx="320" cy="52" r="11" stroke="var(--l-node)" stroke-width="5" data-id="t9" data-col="var(--l-node)" fill="var(--surface)"/><text x="320" y="84" text-anchor="middle" font-size="12" font-weight="700" style="fill:var(--ink)">9</text><text x="320" y="102" text-anchor="middle" font-size="13" style="fill:var(--muted)">fs</text></a><a href="#t10"><title>http</title><circle cx="455" cy="52" r="11" stroke="var(--l-node)" stroke-width="5" data-id="t10" data-col="var(--l-node)" fill="var(--surface)"/><text x="455" y="84" text-anchor="middle" font-size="12" font-weight="700" style="fill:var(--ink)">10</text><text x="455" y="102" text-anchor="middle" font-size="13" style="fill:var(--muted)">http</text></a><a href="#c-notes"><title>Notes API</title><circle cx="590" cy="52" r="11" stroke="var(--l-exam)" stroke-width="5" data-id="c-notes" data-col="var(--l-exam)" fill="var(--surface)"/><text x="590" y="84" text-anchor="middle" font-size="12" font-weight="700" style="fill:var(--ink)">★</text><text x="590" y="102" text-anchor="middle" font-size="13" style="fill:var(--muted)">Notes API</text></a></g></svg></figure>
+</header>
+<section class="box idea" style="margin-top:28px">
+  <div class="lbl" data-ico="🎬">Chapters</div>
+  <ul class="plan chapters">
+    <li><b>00:00</b> What we’ll build today, recap of video 2</li>
+    <li><b>00:45</b> Stop 7: Events (emit, on, once, your own emitter class)</li>
+    <li><b>05:00</b> Stop 8: Readline (questions, promises, reading files line by line)</li>
+    <li><b>08:00</b> Stop 9: FS (read, write, append, JSON as a database, streams)</li>
+    <li><b>12:30</b> Stop 10: HTTP (createServer, req and res, URLs, POST bodies, curl)</li>
+    <li><b>17:00</b> Capstone: a notes API with only core modules</li>
+    <li><b>19:15</b> Recap and practice</li>
+  </ul>
+</section>
+
+<section class="box tip" data-group="node">
+  <div class="lbl" data-ico="↩️">Last time, in 20 seconds</div>
+  <ul>
+    <li>A file is a module: private unless exported. CommonJS uses <code>module.exports</code>/<code>require</code>; ES Modules use <code>export</code>/<code>import</code> with <code>.js</code>.</li>
+    <li><code>process.argv.slice(2)</code> gives your arguments (always strings); <code>process.env</code> holds config like <code>PORT</code>.</li>
+    <li>Build paths with <code>path.join(__dirname, …)</code>, never with <code>+ "/"</code>.</li>
+  </ul>
+</section>
+<section class="topic" id="t7" data-group="node" data-num="7" data-title="Events module">
+  <div class="topic-head"><div class="badge">7</div><div><div class="meta">Node core line</div><h2>Events module: <code>emit</code> and <code>on</code></h2></div></div>
+  <div class="box idea"><div class="lbl" data-ico="💡">Big idea</div><p>An <b>EventEmitter</b> lets one part of your code <b>announce</b> that something happened (<code>emit</code>) and any number of other parts <b>react</b> (<code>on</code>), without knowing about each other. It's the pattern Node itself is built on: servers emit <code>"request"</code>, streams emit <code>"data"</code>, readline emits <code>"line"</code>.</p></div>
+  <div class="box analogy"><div class="lbl" data-ico="🔔">Analogy</div><p>A YouTube channel. Viewers <b>subscribe</b> (<code>on</code>). When the creator <b>uploads</b> (<code>emit</code>), every subscriber gets notified with the video (the data). The creator doesn't need to know who's subscribed. If you subscribe <i>after</i> the upload, you miss that notification.</p></div>
+
+  <figure class="fig"><svg viewBox="0 0 660 190" width="660" height="190" role="img" aria-labelledby="evT"><title id="evT">One emit call triggers all registered listeners in order</title>
+    <defs><marker id="ar3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--l-node)"/></marker></defs>
+    <rect x="20" y="70" width="190" height="50" rx="10" fill="var(--good-bg)" stroke="var(--l-node)" stroke-width="2"/><text x="115" y="100" text-anchor="middle" class="mono" font-size="13">emit("order", pizza)</text>
+    <rect x="260" y="70" width="110" height="50" rx="25" fill="var(--surface-2)" stroke="var(--line)"/><text x="315" y="93" text-anchor="middle" font-size="13" font-weight="700">emitter</text><text x="315" y="110" text-anchor="middle" font-size="12">"order" list</text>
+    <path d="M212 95 H256" stroke="var(--l-node)" stroke-width="3" marker-end="url(#ar3)"/>
+    <g font-size="13" class="mono">
+      <rect x="430" y="15" width="210" height="40" rx="8" fill="var(--surface)" stroke="var(--line)"/><text x="535" y="40" text-anchor="middle">① sendEmail(pizza)</text>
+      <rect x="430" y="75" width="210" height="40" rx="8" fill="var(--surface)" stroke="var(--line)"/><text x="535" y="100" text-anchor="middle">② updateStock(pizza)</text>
+      <rect x="430" y="135" width="210" height="40" rx="8" fill="var(--surface)" stroke="var(--line)"/><text x="535" y="160" text-anchor="middle">③ logOrder(pizza)</text>
+    </g>
+    <path d="M372 88 L426 38" stroke="var(--l-node)" stroke-width="2" marker-end="url(#ar3)"/><path d="M372 95 H426" stroke="var(--l-node)" stroke-width="2" marker-end="url(#ar3)"/><path d="M372 102 L426 152" stroke="var(--l-node)" stroke-width="2" marker-end="url(#ar3)"/>
+  </svg><figcaption>Listeners run in the order they were registered, one after another (synchronously).</figcaption></figure>
+
+<pre><code data-lang="js">const EventEmitter = require("events");   // the module exports the class
+const shop = new EventEmitter();           // make an emitter object
+
+// 1. Register listeners FIRST
+shop.on("order", (item, qty) => {
+  console.log(`Email: you ordered ${qty} × ${item}`);
+});
+shop.on("order", (item) => {
+  console.log(`Stock: reduce ${item}`);
+});
+shop.once("order", () => {
+  console.log("First order bonus!");         // runs only the first time
+});
+
+// 2. Then emit, passing any data as extra arguments
+shop.emit("order", "pizza", 2);
+shop.emit("order", "pasta", 1);
+</code></pre>
+<pre class="out">Email: you ordered 2 × pizza
+Stock: reduce pizza
+First order bonus!
+Email: you ordered 1 × pasta
+Stock: reduce pasta</pre>
+  <div class="anno">
+    <span><code>new EventEmitter()</code></span><span>creates an object that keeps a list of listeners per event name.</span>
+    <span><code>on(name, fn)</code></span><span>adds <code>fn</code> to that name's list. Alias: <code>addListener</code>.</span>
+    <span><code>emit(name, ...args)</code></span><span>calls every listener for <code>name</code>, in order, passing <code>args</code>. Returns <code>true</code> if there were listeners.</span>
+    <span><code>once(name, fn)</code></span><span>listener removes itself after its first run.</span>
+    <span><code>off(name, fn)</code></span><span>removes a listener. You need a reference to the same function, so use a named function. Alias: <code>removeListener</code>.</span>
+    <span><code>listenerCount(name)</code></span><span>how many listeners are registered.</span>
+  </div>
+
+  <div class="lab" id="evLab"><div class="lab-head">Lab: event emitter simulator</div><div class="lab-body">
+    <p class="how">Try emitting before adding any listeners: nothing happens. Then add a few and emit again. Add a <code>once</code> listener and emit twice.</p>
+    <div class="row"><button class="btn" id="evOn">+ on("login")</button><button class="btn" id="evOnce">+ once("login")</button><button class="btn" id="evOff">off (remove last)</button><button class="btn primary" id="evEmit">emit("login", "Asha")</button><button class="btn" id="evReset">Reset</button></div>
+    <div class="row" id="evList" aria-label="Registered listeners"></div>
+    <div class="console" id="evOut" aria-live="polite"></div>
+  </div></div>
+
+  <h3>Building your own emitter class</h3>
+  <p>The real-world pattern is to <b>extend</b> EventEmitter so your class can emit its own events.</p>
+<pre><code data-lang="js">const EventEmitter = require("events");
+
+class Timer extends EventEmitter {
+  start(seconds) {
+    this.emit("start", seconds);
+    setTimeout(() => this.emit("done"), seconds * 1000);
+  }
+}
+
+const t = new Timer();
+t.on("start", (s) => console.log(`Started ${s}s timer`));
+t.on("done", () => console.log("Time's up!"));
+t.start(2);
+</code></pre>
+  <div class="box tip"><div class="lbl" data-ico="🧠">The special "error" event</div><p>If something emits <code>"error"</code> and nobody is listening for it, Node <b>throws and crashes</b>. Always add <code>emitter.on("error", err =&gt; …)</code> on emitters that might fail.</p></div>
+  <h3>You’ve already met emitters <span class="newtag">New</span></h3>
+  <p>Once you know <code>on</code> and <code>emit</code>, you’ll see them all over Node’s own modules, including every stop in this video.</p>
+  <div class="tbl-wrap"><table>
+    <tr><th>Object</th><th>Events</th><th>Fires when</th></tr>
+    <tr><td><code>process</code></td><td><code>"exit"</code>, <code>"SIGINT"</code></td><td>the program is ending / <span class="kbd">Ctrl</span> + <span class="kbd">C</span> was pressed</td></tr>
+    <tr><td>readline <code>rl</code></td><td><code>"line"</code>, <code>"close"</code></td><td><span class="kbd">Enter</span> was pressed / <code>rl.close()</code> ran (stop 8)</td></tr>
+    <tr><td><code>fs.createReadStream(file)</code></td><td><code>"data"</code>, <code>"end"</code>, <code>"error"</code></td><td>a chunk was read / the file is finished / reading failed (stop 9)</td></tr>
+    <tr><td>http <code>server</code></td><td><code>"request"</code></td><td>a request arrived (stop 10)</td></tr>
+    <tr><td>incoming <code>req</code></td><td><code>"data"</code>, <code>"end"</code></td><td>a piece of the body arrived / the whole body is in (stop 10)</td></tr>
+  </table></div>
+
+  <h3>Two things real projects run into <span class="newtag">New</span></h3>
+  <h4>Waiting for an event with <code>await</code></h4>
+<pre><code data-lang="js">const { EventEmitter, once } = require("node:events");
+const db = new EventEmitter();
+
+async function start() {
+  setTimeout(() => db.emit("ready", "connected"), 500);
+  const [status] = await once(db, "ready");   // resolves with emit's arguments, as an array
+  console.log("DB is", status);                // DB is connected
+}
+start();
+</code></pre>
+  <h4>The memory-leak warning</h4>
+  <p>By default Node warns when more than <b>10</b> listeners are attached to one event on one emitter: <code>MaxListenersExceededWarning: Possible EventEmitter memory leak detected</code>. It’s almost always a bug, typically calling <code>on()</code> inside a request handler so a new listener piles up on every request. Fix the bug; only raise the limit with <code>emitter.setMaxListeners(n)</code> when you truly need more.</p>
+
+  <div class="box trap"><div class="lbl" data-ico="⚠️">Exam traps</div><ul>
+    <li>Emitting before <code>on</code> is registered: the event is lost. Order matters.</li>
+    <li>Event names must match exactly, including case: <code>"Login"</code> ≠ <code>"login"</code>.</li>
+    <li><code>emit</code> is <b>synchronous</b>: all listeners finish before the line after <code>emit</code> runs.</li>
+    <li><code>require("events")</code> gives the class itself; you need <code>new</code>.</li>
+  </ul></div>
+  <div class="quiz" data-quiz="t7"></div>
+</section>
+
+<section class="topic" id="t8" data-group="node" data-num="8" data-title="Readline module">
+  <div class="topic-head"><div class="badge">8</div><div><div class="meta">Node core line</div><h2>Readline module: <code>rl.question</code></h2></div></div>
+  <div class="box idea"><div class="lbl" data-ico="💡">Big idea</div><p><code>readline</code> lets your program <b>ask the user something in the terminal and wait for their typed answer</b>. You connect it to the keyboard (<code>process.stdin</code>) and screen (<code>process.stdout</code>), ask with <code>rl.question</code>, and <b>must close it</b> when done or the program never exits.</p></div>
+  <div class="box analogy"><div class="lbl" data-ico="📞">Analogy</div><p>A phone call. <code>createInterface</code> dials. <code>question</code> asks something and waits for the reply (the callback is "what to do when they answer"). <code>close</code> hangs up. Forget to hang up and the line stays open forever.</p></div>
+
+<pre><code data-lang="js"><span class="fname">ask.js</span>const readline = require("readline");
+
+const rl = readline.createInterface({
+  input: process.stdin,     // read from keyboard
+  output: process.stdout    // write prompts to terminal
+});
+
+rl.question("What's your name? ", (name) => {
+  console.log(`Hello, ${name}!`);
+  rl.close();               // hang up → program can exit
+});
+
+console.log("(this prints BEFORE you answer — question doesn't block)");
+</code></pre>
+  <div class="anno">
+    <span><code>createInterface</code></span><span>builds the reader. It's an EventEmitter (stop 7).</span>
+    <span><code>rl.question(prompt, cb)</code></span><span>prints <code>prompt</code>, waits for Enter, then calls <code>cb(answer)</code>. The answer is always a string.</span>
+    <span><code>rl.close()</code></span><span>stops listening to the keyboard. Emits <code>"close"</code>.</span>
+  </div>
+
+  <div class="lab" id="rlLab"><div class="lab-head">Lab: run it in a fake terminal</div><div class="lab-body">
+    <p class="how">This simulates a two-question program. Watch which line of code is running (highlighted) as you answer.</p>
+    <pre id="rlCode" style="font-size:13.5px"></pre>
+    <div class="console" id="rlOut" aria-live="polite"></div>
+    <div class="row"><input type="text" id="rlIn" placeholder="Type your answer and press Enter" aria-label="Terminal input"><button class="btn primary" id="rlSend">Enter</button><button class="btn" id="rlReset">Restart</button></div>
+  </div></div>
+
+  <h3>Asking several questions</h3>
+  <p>Because each answer arrives in a callback, the next question has to go <b>inside</b> the previous callback. Nesting gets deep fast ("callback hell").</p>
+<pre><code data-lang="js">rl.question("Name? ", (name) => {
+  rl.question("Age? ", (age) => {
+    console.log(`${name} is ${Number(age)} years old`);
+    rl.close();
+  });
+});
+</code></pre>
+  <h4>The cleaner way: the promise version</h4>
+<pre><code data-lang="js">const readline = require("readline/promises");   // note: /promises
+
+async function main() {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  const name = await rl.question("Name? ");
+  const age  = await rl.question("Age? ");
+  console.log(`${name} is ${Number(age)} years old`);
+  rl.close();
+}
+main();
+</code></pre>
+
+  <h4>Reading line after line (a mini shell)</h4>
+<pre><code data-lang="js">rl.setPrompt("todo> ");
+rl.prompt();
+rl.on("line", (line) => {             // fires every time Enter is pressed
+  if (line.trim() === "exit") return rl.close();
+  console.log(`You typed: ${line}`);
+  rl.prompt();
+});
+rl.on("close", () => console.log("Bye!"));
+</code></pre>
+  <h3>Read a big file line by line <span class="newtag">New</span></h3>
+  <p>readline works on any stream, not just the keyboard. Give it <code>fs.createReadStream</code> and you can process a huge log file one line at a time, without loading the whole file into memory.</p>
+<pre><code data-lang="js"><span class="fname">count-errors.js</span>const fs = require("node:fs");
+const readline = require("node:readline");
+
+async function countErrors(file) {
+  const rl = readline.createInterface({
+    input: fs.createReadStream(file),
+    crlfDelay: Infinity          // treat \r\n (Windows line endings) as one line break
+  });
+  let total = 0, errors = 0;
+  for await (const line of rl) { // one line per loop
+    total++;
+    if (line.includes("ERROR")) errors++;
+  }
+  console.log(`${errors} errors in ${total} lines`);
+}
+
+countErrors(process.argv[2]).catch(err => console.error(err.message));
+</code></pre>
+<pre class="out">$ node count-errors.js server.log
+12 errors in 48210 lines</pre>
+  <p>The <code>for await</code> loop ends, and the interface closes, when the file runs out.</p>
+
+  <div class="box trap"><div class="lbl" data-ico="⚠️">Exam traps</div><ul>
+    <li>Forgetting <code>rl.close()</code>: the program hangs and never exits.</li>
+    <li>Using the answer outside the callback: it doesn't exist yet there.</li>
+    <li>Answers are strings: <code>Number(age)</code> before doing maths.</li>
+    <li>Closing too early (outside the callback): the question never gets answered.</li>
+  </ul></div>
+  <div class="quiz" data-quiz="t8"></div>
+</section>
+
+<section class="topic" id="t9" data-group="node" data-num="9" data-title="FS module">
+  <div class="topic-head"><div class="badge">9</div><div><div class="meta">Node core line</div><h2>FS module: read, write, append</h2></div></div>
+  <div class="box idea"><div class="lbl" data-ico="💡">Big idea</div><p><code>fs</code> (file system) reads and writes files on disk. Every operation comes in three flavours: <b>synchronous</b> (blocks until done), <b>callback</b> (calls you back when done), and <b>promise</b> (works with <code>await</code>). Write <b>replaces</b> a file's contents; append <b>adds to the end</b>.</p></div>
+  <div class="box analogy"><div class="lbl" data-ico="📓">Analogy</div><p>A notebook page. <b>readFile</b>: read the page. <b>writeFile</b>: tear the page out and write a fresh one (old text gone). <b>appendFile</b>: write on the next empty line (old text kept). Both write and append create the page if it doesn't exist; read fails if it doesn't.</p></div>
+
+  <div class="lab" id="fsLab"><div class="lab-head">Lab: a virtual notes.txt</div><div class="lab-body">
+    <p class="how">Start by reading (the file doesn't exist yet, so you'll get the real error). Then write, append, and write again to see the difference.</p>
+    <div class="row"><input type="text" id="fsText" value="Hello" aria-label="Text to write"></div>
+    <div class="row"><button class="btn" id="fsRead">readFile</button><button class="btn" id="fsWrite">writeFile</button><button class="btn" id="fsAppend">appendFile</button><button class="btn" id="fsDel">unlink (delete)</button><button class="btn" id="fsReset">Reset</button></div>
+    <div class="cmp" style="margin-top:8px"><div><h4 style="margin:0 0 6px">Code that ran</h4><pre style="margin:0"><code data-lang="js" id="fsCode">// click a button</code></pre></div><div><h4 style="margin:0 0 6px">notes.txt on disk</h4><div class="console" id="fsDisk" style="margin:0;min-height:96px"></div></div></div>
+    <div class="console" id="fsOut" aria-live="polite"></div>
+  </div></div>
+
+  <h3>The three flavours, side by side</h3>
+<pre><code data-lang="js">const fs = require("fs");
+const path = require("path");
+const file = path.join(__dirname, "notes.txt");
+
+// ① SYNC — simple, but blocks the whole program while it works
+try {
+  const text = fs.readFileSync(file, "utf8");
+  console.log(text);
+} catch (err) {
+  console.error("Read failed:", err.message);
+}
+
+// ② CALLBACK — "error-first": the first callback argument is always the error
+fs.readFile(file, "utf8", (err, data) => {
+  if (err) {
+    return console.error("Read failed:", err.message);   // return stops here
+  }
+  console.log(data);
+});
+
+// ③ PROMISE — modern, use with async/await
+const fsp = require("fs/promises");
+async function show() {
+  try {
+    const data = await fsp.readFile(file, "utf8");
+    console.log(data);
+  } catch (err) {
+    console.error(err.message);
+  }
+}
+</code></pre>
+  <div class="box trap"><div class="lbl" data-ico="⚠️">The <code>"utf8"</code> trap</div><p>Without the encoding, <code>readFile</code> gives you a <b>Buffer</b> (raw bytes, printed like <code>&lt;Buffer 48 65 6c 6c 6f&gt;</code>), not text. Always pass <code>"utf8"</code> or call <code>data.toString()</code>.</p></div>
+
+  <h3>Write and append</h3>
+<pre><code data-lang="js">// Overwrites (or creates) the file
+fs.writeFile(file, "First line\n", (err) => {
+  if (err) return console.error(err);
+  console.log("Saved");
+
+  // Adds to the end (or creates). Put this INSIDE the callback so it runs after.
+  fs.appendFile(file, "Second line\n", (err) => {
+    if (err) return console.error(err);
+    console.log("Appended");
+  });
+});
+
+// Sync versions
+fs.writeFileSync(file, "Fresh start\n");
+fs.appendFileSync(file, "Another line\n");
+</code></pre>
+  <div class="box warnbox"><div class="lbl" data-ico="🔀">Order isn't guaranteed with callbacks</div><p>If you call <code>fs.writeFile(...)</code> and then <code>fs.appendFile(...)</code> on the next line (not nested), they run at the same time and the append may happen before the write, which then wipes it. Nest them, use the sync versions, or <code>await</code> the promise versions in sequence.</p></div>
+
+  <h3>Other fs operations you should recognise</h3>
+  <div class="tbl-wrap"><table>
+    <tr><th>Method</th><th>Does</th></tr>
+    <tr><td><code>fs.existsSync(p)</code></td><td><code>true</code> if a file/folder exists (sync only)</td></tr>
+    <tr><td><code>fs.mkdir(p, { recursive: true }, cb)</code></td><td>create a folder (and parents)</td></tr>
+    <tr><td><code>fs.readdir(p, cb)</code></td><td>list the names inside a folder</td></tr>
+    <tr><td><code>fs.unlink(p, cb)</code></td><td>delete a file</td></tr>
+    <tr><td><code>fs.rename(old, new, cb)</code></td><td>rename / move</td></tr>
+    <tr><td><code>fs.stat(p, cb)</code></td><td>size, dates, <code>isFile()</code>, <code>isDirectory()</code></td></tr>
+  </table></div>
+  <h4>Common errors</h4>
+  <div class="tbl-wrap"><table>
+    <tr><th>Code</th><th>Means</th></tr>
+    <tr><td><code>ENOENT</code></td><td>Error NO ENTry: file or folder doesn't exist</td></tr>
+    <tr><td><code>EACCES</code></td><td>Permission denied</td></tr>
+    <tr><td><code>EISDIR</code></td><td>You tried to read a folder as if it were a file</td></tr>
+  </table></div>
+
+  <h3>Pattern: a JSON file as a mini database</h3>
+  <p>Very likely in a coding exam: store an array of objects in a <code>.json</code> file.</p>
+<pre><code data-lang="js"><span class="fname">store.js</span>const fs = require("fs");
+const path = require("path");
+const DB = path.join(__dirname, "todos.json");
+
+function load() {
+  if (!fs.existsSync(DB)) return [];                 // no file yet → empty list
+  return JSON.parse(fs.readFileSync(DB, "utf8"));    // text → array
+}
+
+function save(todos) {
+  fs.writeFileSync(DB, JSON.stringify(todos, null, 2));  // array → pretty text
+}
+
+const todos = load();
+todos.push({ id: Date.now(), text: "Revise fs", done: false });
+save(todos);
+</code></pre>
+  <p><code>JSON.stringify(value, null, 2)</code>: the <code>null</code> means "no filter", the <code>2</code> means indent with 2 spaces so the file is readable.</p>
+  <h3>Streams: big files in small pieces <span class="newtag">New</span></h3>
+  <div class="box analogy"><div class="lbl" data-ico="🚰">Analogy</div><p><code>readFile</code> fills a whole bucket and then carries it. A stream is a pipe: the water flows through a little at a time, so a 2 GB file never has to fit in memory at once.</p></div>
+<pre><code data-lang="js"><span class="fname">copy-big.js</span>const fs = require("node:fs");
+const { pipeline } = require("node:stream/promises");
+
+async function copy(src, dest) {
+  await pipeline(
+    fs.createReadStream(src),    // reads in chunks (64 KB by default)
+    fs.createWriteStream(dest)   // writes each chunk as it arrives
+  );
+  console.log("Copied");
+}
+
+copy("big-video.mp4", "backup.mp4").catch(err => console.error(err.message));
+</code></pre>
+  <p><code>pipeline</code> connects the streams, slows the reader down when the writer falls behind, and reports any error in one place. Streams are EventEmitters too: they emit <code>"data"</code>, <code>"end"</code> and <code>"error"</code>. Video streaming and file uploads work this way.</p>
+
+  <h4>Handy modern fs calls <span class="newtag">New</span></h4>
+  <div class="tbl-wrap"><table>
+    <tr><th>Call</th><th>Does</th></tr>
+    <tr><td><code>fs.mkdirSync("logs/2026/oct", { recursive: true })</code></td><td>creates every missing folder; no error if they already exist</td></tr>
+    <tr><td><code>fs.rmSync("dist", { recursive: true, force: true })</code></td><td>deletes a folder and everything in it. There’s no undo, so double-check the path</td></tr>
+    <tr><td><code>fs.cpSync("src", "backup", { recursive: true })</code></td><td>copies a whole folder</td></tr>
+    <tr><td><code>fs.readdirSync("src", { recursive: true })</code></td><td>lists files in sub-folders too (Node 20.1+)</td></tr>
+    <tr><td><code>fs.writeFileSync(file, "x", { flag: "a" })</code></td><td>the <code>"a"</code> flag makes a write append instead of replace</td></tr>
+  </table></div>
+
+  <div class="box remember"><div class="lbl" data-ico="📌">Remember</div><ul>
+    <li>write = replace, append = add to end. Both create missing files. read fails with <code>ENOENT</code>.</li>
+    <li>Pass <code>"utf8"</code>.</li>
+    <li>Callbacks are error-first: <code>(err, data)</code>. Check <code>err</code> first and <code>return</code>.</li>
+    <li>Build paths with <code>path.join(__dirname, …)</code>.</li>
+  </ul></div>
+  <div class="quiz" data-quiz="t9"></div>
+</section>
+
+<section class="topic" id="t10" data-group="node" data-num="10" data-title="HTTP module">
+  <div class="topic-head"><div class="badge">10</div><div><div class="meta">Node core line</div><h2>HTTP module: request and response</h2></div></div>
+  <div class="box idea"><div class="lbl" data-ico="💡">Big idea</div><p>The built-in <code>http</code> module creates a web server with no extra packages. You give <code>http.createServer</code> one function; Node calls it <b>for every request</b> with two objects: <code>req</code> (what the client asked for) and <code>res</code> (what you'll send back). You must <b>always finish with <code>res.end()</code></b>. Express (next line) is built on top of exactly this.</p></div>
+  <div class="box analogy"><div class="lbl" data-ico="📮">Analogy</div><p><code>req</code> is a letter that arrived: who sent it, what it says, which department it's for. <code>res</code> is a blank reply envelope. You write the status, the headers and the body, then <code>res.end()</code> seals and posts it. If you never seal it, the sender waits forever.</p></div>
+
+<pre><code data-lang="js"><span class="fname">server.js</span>const http = require("http");
+
+const server = http.createServer((req, res) => {
+  console.log(req.method, req.url);        // e.g. "GET /about"
+
+  if (req.method === "GET" &amp;&amp; req.url === "/") {
+    res.writeHead(200, { "Content-Type": "text/html" });
+    res.end("&lt;h1&gt;Home&lt;/h1&gt;");
+  } else if (req.method === "GET" &amp;&amp; req.url === "/api/users") {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify([{ id: 1, name: "Asha" }]));   // must be a string!
+  } else {
+    res.writeHead(404, { "Content-Type": "text/plain" });
+    res.end("Not found");
+  }
+});
+
+server.listen(3000, () => {
+  console.log("Server on http://localhost:3000");
+});
+</code></pre>
+
+  <div class="cmp"><div><h4>The <code>req</code> object (read it)</h4><ul>
+    <li><code>req.method</code>: <code>"GET"</code>, <code>"POST"</code>…</li>
+    <li><code>req.url</code>: path + query, e.g. <code>"/users?page=2"</code></li>
+    <li><code>req.headers</code>: object, lower-case keys, e.g. <code>req.headers["content-type"]</code></li>
+    <li>Body: not ready yet; arrives in chunks (see below)</li>
+  </ul></div><div><h4>The <code>res</code> object (write it)</h4><ul>
+    <li><code>res.statusCode = 404</code></li>
+    <li><code>res.setHeader("Content-Type", "text/plain")</code></li>
+    <li><code>res.writeHead(200, {...})</code>: status + headers in one go</li>
+    <li><code>res.write("part")</code>: send some body (can repeat)</li>
+    <li><code>res.end("last part")</code>: finish. Required, once.</li>
+  </ul></div></div>
+
+  <div class="lab" id="httpLab"><div class="lab-head">Lab: send requests to the server above</div><div class="lab-body">
+    <p class="how">Pick a method and path, then send. You'll see the raw text that goes over the wire, and which <code>if</code> branch handled it.</p>
+    <div class="row"><select id="httpM" aria-label="Method"><option>GET</option><option>POST</option><option>DELETE</option></select><input type="text" id="httpU" value="/api/users" aria-label="Path"><button class="btn primary" id="httpGo">Send request</button></div>
+    <div class="row"><button class="btn" data-hp="GET /">GET /</button><button class="btn" data-hp="GET /api/users">GET /api/users</button><button class="btn" data-hp="POST /api/users">POST /api/users</button><button class="btn" data-hp="GET /api/users?x=1">GET /api/users?x=1</button></div>
+    <div class="cmp"><div><h4 style="margin:6px 0">Request</h4><div class="console" id="httpReq"></div></div><div><h4 style="margin:6px 0">Response</h4><div class="console" id="httpRes"></div></div></div>
+    <p class="how" id="httpWhy" aria-live="polite" style="margin-top:8px"></p>
+  </div></div>
+
+  <h3>Parse the URL properly <span class="newtag">New</span></h3>
+  <p>The lab showed that <code>req.url</code> includes the query string. The built-in <code>URL</code> class splits it apart for you.</p>
+<pre><code data-lang="js">// request: GET /api/users?page=2&amp;sort=name
+const url = new URL(req.url, `http://${req.headers.host}`);
+
+url.pathname                     // "/api/users"
+url.searchParams.get("page")     // "2"   (still a string)
+url.searchParams.get("missing")  // null
+
+if (req.method === "GET" &amp;&amp; url.pathname === "/api/users") {
+  const page = Number(url.searchParams.get("page") ?? 1);
+  // …
+}
+</code></pre>
+  <p>The second argument is a base, needed because <code>req.url</code> is only a path. Express does exactly this and hands you the result as <code>req.query</code>.</p>
+
+  <h3>Reading a POST body by hand</h3>
+  <p>Request bodies arrive as a stream of chunks (<code>req</code> is an EventEmitter). You collect them on <code>"data"</code> and use them on <code>"end"</code>. Express's <code>express.json()</code> does this for you.</p>
+<pre><code data-lang="js">if (req.method === "POST" &amp;&amp; req.url === "/api/users") {
+  let body = "";
+  req.on("data", (chunk) => { body += chunk; });   // pieces arrive
+  req.on("end", () => {                            // all arrived
+    try {
+      const user = JSON.parse(body);
+      res.writeHead(201, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ id: 2, ...user }));
+    } catch {
+      res.writeHead(400);
+      res.end("Invalid JSON");
+    }
+  });
+  return;   // don't fall through to other branches
+}
+</code></pre>
+  <h3>Test your server from the terminal <span class="newtag">New</span></h3>
+  <p>Browsers only send GET from the address bar. To send POST, PUT or DELETE, use <code>curl</code> in a second terminal, or Node’s own <code>fetch</code>.</p>
+<pre><code data-lang="sh"># GET, showing the status line and headers
+curl -i http://localhost:3000/api/users
+
+# POST a JSON body (macOS, Linux, Git Bash)
+curl -i -X POST http://localhost:3000/api/users -H "Content-Type: application/json" -d '{"name":"Ravi"}'
+
+# Windows PowerShell: use curl.exe and keep the JSON in a file (user.json)
+curl.exe -i -X POST http://localhost:3000/api/users -H "Content-Type: application/json" --data "@user.json"
+</code></pre>
+<pre><code data-lang="js"><span class="fname">client.mjs</span>// Node as a client: fetch is built in, no packages needed
+const res = await fetch("http://localhost:3000/api/users", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ name: "Ravi" })
+});
+console.log(res.status, await res.json());
+</code></pre>
+
+  <h3>Serve an HTML file with fs + path <span class="newtag">New</span></h3>
+<pre><code data-lang="js"><span class="fname">site.js</span>const http = require("node:http");
+const fs = require("node:fs/promises");
+const path = require("node:path");
+
+http.createServer(async (req, res) => {
+  if (req.method === "GET" &amp;&amp; req.url === "/") {
+    try {
+      const html = await fs.readFile(path.join(__dirname, "public", "index.html"), "utf8");
+      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+      return res.end(html);
+    } catch {
+      res.writeHead(500, { "Content-Type": "text/plain" });
+      return res.end("Could not read index.html");
+    }
+  }
+  res.writeHead(404, { "Content-Type": "text/plain" });
+  res.end("Not found");
+}).listen(3000);
+</code></pre>
+  <p>Three modules working together: <code>http</code> receives, <code>path</code> builds the file location, <code>fs</code> reads it. This is a tiny version of what <code>express.static</code> does for a whole folder.</p>
+
+  <h3>Why people move to Express</h3>
+  <div class="tbl-wrap"><table>
+    <tr><th>Job</th><th>Raw http</th><th>Express</th></tr>
+    <tr><td>Routing</td><td>chains of <code>if (req.url === …)</code></td><td><code>app.get("/path", fn)</code></td></tr>
+    <tr><td>URL params like <code>/users/7</code></td><td>split the string yourself</td><td><code>req.params.id</code></td></tr>
+    <tr><td>Query string</td><td>parse <code>new URL(req.url, "http://x")</code></td><td><code>req.query</code></td></tr>
+    <tr><td>JSON body</td><td>collect chunks + <code>JSON.parse</code></td><td><code>app.use(express.json())</code> → <code>req.body</code></td></tr>
+    <tr><td>Send JSON</td><td>set header + <code>JSON.stringify</code> + <code>end</code></td><td><code>res.json(obj)</code></td></tr>
+  </table></div>
+  <div class="box trap"><div class="lbl" data-ico="⚠️">Exam traps</div><ul>
+    <li>No <code>res.end()</code>: the browser spins forever.</li>
+    <li><code>res.end()</code> only accepts strings or Buffers; <code>res.end({a:1})</code> throws. Stringify first.</li>
+    <li><code>req.url</code> includes the query: <code>"/api/users?x=1" === "/api/users"</code> is false.</li>
+    <li>Sending twice ("Cannot set headers after they are sent"): <code>return</code> after responding.</li>
+    <li>Port already in use: <code>EADDRINUSE</code>. Stop the other server or change port.</li>
+  </ul></div>
+  <div class="quiz" data-quiz="t10"></div>
+</section>
+
+<section class="topic" id="c-notes" data-group="node" data-num="★" data-title="Capstone: notes API">
+  <div class="topic-head"><div class="badge">★</div><div><div class="meta">Capstone</div><h2>A notes API with only core modules <span class="newtag">New</span></h2></div></div>
+  <div class="box idea"><div class="lbl" data-ico="💡">Big idea</div><p>Five modules, one small program. <b>process</b> gives the port, <b>path</b> locates the data file, <b>fs</b> stores notes as JSON, <b>events</b> lets logging react to new notes without the route knowing about it, and <b>http</b> answers <code>GET /notes</code> and <code>POST /notes</code>. Notes survive a restart because they live in a file.</p></div>
+
+  <div class="lab" id="napiLab"><div class="lab-head">Lab: drive the API before you write it</div><div class="lab-body">
+    <p class="how">Send requests to a simulated copy of the server below. Add a note, list them, try a bad request, then restart the server and list again: the notes are still there.</p>
+    <div class="row"><input type="text" id="napiText" value="Learn events" aria-label="Note text"><button class="btn primary" id="napiPost" type="button">POST /notes</button></div>
+    <div class="row"><button class="btn" id="napiGet" type="button">GET /notes</button><button class="btn" id="napiBad" type="button">POST with empty text</button><button class="btn" id="napi404" type="button">GET /nope</button><button class="btn" id="napiRestart" type="button">Restart server</button><button class="btn" id="napiReset" type="button">Delete notes.json</button></div>
+    <div class="cmp"><div><h4 style="margin:6px 0">Request</h4><div class="console" id="napiReq"></div></div><div><h4 style="margin:6px 0">Response</h4><div class="console" id="napiRes"></div></div></div>
+    <div class="cmp" style="margin-top:8px"><div><h4 style="margin:6px 0">notes.json on disk</h4><div class="console" id="napiFile"></div></div><div><h4 style="margin:6px 0">notes.log (written by the event listener)</h4><div class="console" id="napiLog"></div></div></div>
+  </div></div>
+
+<pre><code data-lang="js"><span class="fname">notes-api.js</span>const http = require("node:http");
+const fs = require("node:fs/promises");
+const path = require("node:path");
+const { EventEmitter } = require("node:events");
+
+const PORT = Number(process.env.PORT ?? 3000);          // process (video 2)
+const DB = path.join(__dirname, "notes.json");          // path (video 2)
+const LOG = path.join(__dirname, "notes.log");
+const bus = new EventEmitter();                         // events (stop 7)
+
+// ---- storage: a JSON file as a mini database (stop 9)
+async function loadNotes() {
+  try {
+    return JSON.parse(await fs.readFile(DB, "utf8"));
+  } catch (err) {
+    if (err.code === "ENOENT") return [];               // no file yet → empty list
+    throw err;
+  }
+}
+async function saveNotes(notes) {
+  await fs.writeFile(DB, JSON.stringify(notes, null, 2));
+}
+
+// ---- logging reacts to an event; the route doesn't know it exists
+bus.on("note:created", (note) => {
+  const line = `${new Date().toISOString()} created #${note.id}\n`;
+  fs.appendFile(LOG, line).catch((err) => console.error("log failed:", err.message));
+});
+
+// ---- small http helpers (stop 10)
+function sendJSON(res, status, data) {
+  res.writeHead(status, { "Content-Type": "application/json" });
+  res.end(JSON.stringify(data));
+}
+function readBody(req) {
+  return new Promise((resolve, reject) => {
+    let body = "";
+    req.on("data", (chunk) => (body += chunk));
+    req.on("end", () => resolve(body));
+    req.on("error", reject);
+  });
+}
+
+const server = http.createServer(async (req, res) => {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  try {
+    if (req.method === "GET" &amp;&amp; url.pathname === "/notes") {
+      return sendJSON(res, 200, await loadNotes());
+    }
+    if (req.method === "POST" &amp;&amp; url.pathname === "/notes") {
+      let input;
+      try { input = JSON.parse(await readBody(req)); }
+      catch { return sendJSON(res, 400, { error: "Body must be JSON" }); }
+      if (!input?.text) return sendJSON(res, 400, { error: "text is required" });
+
+      const notes = await loadNotes();
+      const note = { id: Date.now(), text: input.text };
+      notes.push(note);
+      await saveNotes(notes);
+      bus.emit("note:created", note);
+      return sendJSON(res, 201, note);
+    }
+    sendJSON(res, 404, { error: "Not found" });
+  } catch (err) {
+    console.error(err);
+    sendJSON(res, 500, { error: "Server error" });
+  }
+});
+
+server.listen(PORT, () => console.log(`Notes API on http://localhost:${PORT}`));
+process.on("SIGINT", () => server.close(() => process.exit(0)));   // Ctrl+C
+</code></pre>
+  <div class="anno">
+    <span><code>loadNotes()</code></span><span>treats a missing file (<code>ENOENT</code>) as “no notes yet” instead of crashing; any other error is real and goes to the 500 handler.</span>
+    <span><code>bus.emit(…)</code></span><span>the route only announces what happened. Add more listeners later (email, analytics) without touching the route.</span>
+    <span><code>input?.text</code></span><span>optional chaining from video 1: a body of <code>null</code> gets a clean 400 instead of a crash.</span>
+    <span><code>return sendJSON(…)</code></span><span>every response is followed by <code>return</code>, so no request is ever answered twice.</span>
+  </div>
+
+  <h3>Run it and test it</h3>
+<pre><code data-lang="sh"># terminal 1
+node --watch notes-api.js
+
+# terminal 2
+curl -i -X POST http://localhost:3000/notes -H "Content-Type: application/json" -d '{"text":"Learn events"}'
+curl -i http://localhost:3000/notes
+cat notes.log        # Windows PowerShell: type notes.log
+</code></pre>
+  <div class="box tip"><div class="lbl" data-ico="🏋️">Extend it yourself</div><ul>
+    <li><code>GET /notes/:id</code>: split <code>url.pathname</code> on <code>"/"</code>, convert the id with <code>Number()</code>, and send 404 when <code>find</code> returns <code>undefined</code>.</li>
+    <li><code>DELETE /notes/:id</code>: <code>findIndex</code>, check for <code>-1</code>, <code>splice</code>, save, respond <code>204</code>, and emit <code>"note:deleted"</code>.</li>
+    <li><code>GET /notes?q=events</code>: filter with <code>url.searchParams.get("q")</code> and <code>includes</code>.</li>
+  </ul><p>Next video rebuilds this with Express, so you can see exactly which lines disappear.</p></div>
+</section>
+
+<section class="topic" id="p-drills" data-group="exam" data-num="P1" data-title="Syntax recall drills">
+  <div class="topic-head"><div class="badge">P1</div><div><div class="meta">Practice line</div><h2>Syntax recall drills</h2></div></div>
+  <p>Each drill hides the key words: type them from memory. <span class="kbd">Enter</span> checks a drill and <span class="kbd">Tab</span> jumps to the next blank. Quote style, spacing and trailing semicolons don’t matter, but capital letters do, just like real code.</p>
+  <div class="row"><span class="qscore" id="blankScore" aria-live="polite"></span><button class="btn" id="blankReset" type="button">Reset all drills</button></div>
+  <div id="blankList"></div>
+</section>
+
+<section class="topic" id="p-bugs" data-group="exam" data-num="P2" data-title="Spot the bug">
+  <div class="topic-head"><div class="badge">P2</div><div><div class="meta">Practice line</div><h2>Spot the bug</h2></div></div>
+  <p>Each snippet has one mistake of the kind that crashes a program or loses marks. Read the symptom, then click the line you think is wrong. When the fix needs two lines, either one counts.</p>
+  <div class="row"><span class="qscore" id="bugScore" aria-live="polite"></span><button class="btn" id="bugReset" type="button">Reset all bugs</button></div>
+  <div id="bugList"></div>
+</section>
+
+<section class="topic" id="p-order" data-group="exam" data-num="P3" data-title="Put the lines in order">
+  <div class="topic-head"><div class="badge">P3</div><div><div class="meta">Practice line</div><h2>Put the lines in order</h2></div></div>
+  <p>Each puzzle shows the lines of a short program shuffled. Tap a line to add it to your answer, tap a placed line to send it back, then press Check.</p>
+  <div class="row"><span class="qscore" id="parScore" aria-live="polite"></span><button class="btn" id="parReset" type="button">Reset all puzzles</button></div>
+  <div id="parList"></div>
+</section>
+
+<section class="topic" id="p-problems" data-group="exam" data-num="P4" data-title="Coding practice problems">
+  <div class="topic-head"><div class="badge">P4</div><div><div class="meta">Practice line</div><h2>Coding practice problems</h2></div></div>
+  <div class="box tip"><div class="lbl" data-ico="✍️">How to practise</div><p>Open VS Code and type each solution yourself. Try for 10 minutes before opening the hint, and 10 more before the solution. Reading a solution feels like understanding; typing it from memory is what actually builds the skill.</p></div>
+  <div class="prob"><div class="lvl">Problem 1 · process.argv + fs + path</div><h4>Command-line todo list</h4>
+  <p>Build <code>todo.js</code> that stores todos in <code>todos.json</code> next to the script:</p>
+<pre><code data-lang="sh">node todo.js add "Buy milk"   # → Added #1: Buy milk
+node todo.js list             # → 1. [ ] Buy milk
+node todo.js done 1           # → Marked #1 done
+node todo.js remove 1         # → Removed #1
+node todo.js                  # → Usage: add &lt;text&gt; | list | done &lt;id&gt; | remove &lt;id&gt;</code></pre>
+  <details><summary>Hint</summary><p>Destructure <code>const [cmd, ...rest] = process.argv.slice(2)</code>. Write <code>load()</code> and <code>save()</code> helpers with <code>readFileSync</code>/<code>writeFileSync</code> and <code>JSON.parse</code>/<code>stringify</code>. Use a <code>switch</code> on <code>cmd</code>. Remember ids from argv are strings.</p></details>
+  <details><summary>Solution</summary>
+<pre><code data-lang="js"><span class="fname">todo.js</span>const fs = require("fs");
+const path = require("path");
+const FILE = path.join(__dirname, "todos.json");
+
+const load = () => (fs.existsSync(FILE) ? JSON.parse(fs.readFileSync(FILE, "utf8")) : []);
+const save = (todos) => fs.writeFileSync(FILE, JSON.stringify(todos, null, 2));
+
+const [cmd, ...rest] = process.argv.slice(2);
+const todos = load();
+
+switch (cmd) {
+  case "add": {
+    const text = rest.join(" ");
+    if (!text) { console.log("Please provide todo text"); process.exit(1); }
+    const id = todos.length ? Math.max(...todos.map(t => t.id)) + 1 : 1;
+    todos.push({ id, text, done: false });
+    save(todos);
+    console.log(`Added #${id}: ${text}`);
+    break;
+  }
+  case "list":
+    if (!todos.length) console.log("No todos yet");
+    todos.forEach(t => console.log(`${t.id}. [${t.done ? "x" : " "}] ${t.text}`));
+    break;
+  case "done": {
+    const todo = todos.find(t => t.id === Number(rest[0]));
+    if (!todo) { console.log("Todo not found"); process.exit(1); }
+    todo.done = true;
+    save(todos);
+    console.log(`Marked #${todo.id} done`);
+    break;
+  }
+  case "remove": {
+    const id = Number(rest[0]);
+    const left = todos.filter(t => t.id !== id);
+    if (left.length === todos.length) { console.log("Todo not found"); process.exit(1); }
+    save(left);
+    console.log(`Removed #${id}`);
+    break;
+  }
+  default:
+    console.log("Usage: add <text> | list | done <id> | remove <id>");
+}</code></pre></details></div>
+
+  <div class="prob"><div class="lvl">Problem 2 · readline + fs append</div><h4>Terminal quiz that saves scores</h4>
+  <p>Ask the user their name, then three questions one after another. Show their score out of 3, and <b>append</b> a line like <code>Asha: 2/3 (2026-10-14T…)</code> to <code>results.txt</code>.</p>
+  <details><summary>Hint</summary><p>Use <code>readline/promises</code> with <code>async/await</code> to avoid nesting. Loop over an array of <code>{ q, a }</code> objects. Compare with <code>answer.trim().toLowerCase()</code>. Call <code>rl.close()</code> at the end.</p></details>
+  <details><summary>Solution</summary>
+<pre><code data-lang="js"><span class="fname">quiz.js</span>const readline = require("readline/promises");
+const fs = require("fs");
+const path = require("path");
+
+const questions = [
+  { q: "Which method sends JSON in Express? ", a: "res.json" },
+  { q: "Which module joins paths? ", a: "path" },
+  { q: "Status code for Created? ", a: "201" }
+];
+
+async function main() {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  const name = (await rl.question("Your name: ")).trim() || "Anonymous";
+  let score = 0;
+
+  for (const { q, a } of questions) {
+    const answer = await rl.question(q);
+    if (answer.trim().toLowerCase() === a) { console.log("✓ Correct"); score++; }
+    else console.log(`✗ Answer: ${a}`);
+  }
+
+  rl.close();
+  console.log(`${name}, you scored ${score}/${questions.length}`);
+  const line = `${name}: ${score}/${questions.length} (${new Date().toISOString()})\n`;
+  fs.appendFileSync(path.join(__dirname, "results.txt"), line);
+}
+
+main();</code></pre>
+  <p>Callback version of one question, in case the exam requires it: <code>rl.question("Name? ", (name) =&gt; { …; rl.close(); });</code></p></details></div>
+
+  <div class="prob"><div class="lvl">Problem 3 · events</div><h4>Bank account that emits events</h4>
+  <p>Create a <code>BankAccount</code> class that extends <code>EventEmitter</code> with <code>deposit(amount)</code> and <code>withdraw(amount)</code>. Emit <code>"deposit"</code>, <code>"withdraw"</code>, or <code>"insufficient"</code> (if the balance is too low) with useful data. Attach listeners that log messages and test it.</p>
+  <details><summary>Solution</summary>
+<pre><code data-lang="js"><span class="fname">bank.js</span>const EventEmitter = require("events");
+
+class BankAccount extends EventEmitter {
+  constructor(owner, balance = 0) {
+    super();                          // required when extending
+    this.owner = owner;
+    this.balance = balance;
+  }
+  deposit(amount) {
+    this.balance += amount;
+    this.emit("deposit", amount, this.balance);
+  }
+  withdraw(amount) {
+    if (amount > this.balance) {
+      return this.emit("insufficient", amount, this.balance);
+    }
+    this.balance -= amount;
+    this.emit("withdraw", amount, this.balance);
+  }
+}
+
+const acc = new BankAccount("Asha", 100);
+acc.on("deposit", (amt, bal) => console.log(`+₹${amt} → balance ₹${bal}`));
+acc.on("withdraw", (amt, bal) => console.log(`-₹${amt} → balance ₹${bal}`));
+acc.on("insufficient", (amt, bal) => console.log(`✗ Can't withdraw ₹${amt}, only ₹${bal}`));
+acc.once("deposit", () => console.log("🎉 First deposit!"));
+
+acc.deposit(50);    // +₹50 → balance ₹150, then 🎉 First deposit!
+acc.withdraw(500);  // ✗ Can't withdraw ₹500, only ₹150
+acc.withdraw(30);   // -₹30 → balance ₹120</code></pre></details></div>
+
+  <div class="prob"><div class="lvl">Problem 4 · http module</div><h4>A server with no Express</h4>
+  <p>Using only <code>http</code>: <code>GET /</code> returns HTML, <code>GET /api/time</code> returns <code>{ "time": "…" }</code>, <code>POST /api/echo</code> returns the JSON body it was sent with status 201 (400 if invalid JSON), and anything else returns a 404 JSON error.</p>
+  <details><summary>Solution</summary>
+<pre><code data-lang="js"><span class="fname">server.js</span>const http = require("http");
+
+const sendJson = (res, status, data) => {
+  res.writeHead(status, { "Content-Type": "application/json" });
+  res.end(JSON.stringify(data));
+};
+
+const server = http.createServer((req, res) => {
+  const { method } = req;
+  const url = req.url.split("?")[0];        // ignore query string
+
+  if (method === "GET" &amp;&amp; url === "/") {
+    res.writeHead(200, { "Content-Type": "text/html" });
+    return res.end("&lt;h1&gt;Welcome&lt;/h1&gt;");
+  }
+  if (method === "GET" &amp;&amp; url === "/api/time") {
+    return sendJson(res, 200, { time: new Date().toISOString() });
+  }
+  if (method === "POST" &amp;&amp; url === "/api/echo") {
+    let body = "";
+    req.on("data", chunk => (body += chunk));
+    req.on("end", () => {
+      try { sendJson(res, 201, JSON.parse(body)); }
+      catch { sendJson(res, 400, { error: "Invalid JSON" }); }
+    });
+    return;
+  }
+  sendJson(res, 404, { error: `Cannot ${method} ${url}` });
+});
+
+server.listen(3000, () => console.log("http://localhost:3000"));</code></pre></details></div>
+
+</section>
+
+<section class="topic" id="p-challenge" data-group="exam" data-num="P5" data-title="End-of-video challenge">
+  <div class="topic-head"><div class="badge">P5</div><div><div class="meta">Practice line</div><h2>End-of-video challenge</h2></div></div>
+  <p>Seven questions on events, readline, fs and http, including the new material and the capstone. Answer without scrolling up, then post your score in the comments.</p>
+  <div class="quiz" data-quiz="v3"></div>
+</section>
+
+<section class="topic" id="p-cheat" data-group="exam" data-num="P6" data-title="Cheat sheet and sources">
+  <div class="topic-head"><div class="badge">P6</div><div><div class="meta">Practice line</div><h2>Cheat sheet</h2></div></div>
+  <p>Everything from this video on one screen. Rows marked New cover the material added for the video.</p>
+  <div class="tbl-wrap"><table>
+    <tr><th>Topic</th><th>Must-know</th></tr>
+    <tr><td>events</td><td><code>const E = require("events"); const e = new E();</code> <code>e.on(name, fn)</code> before <code>e.emit(name, ...args)</code> · <code>once</code> · <code>off</code> · synchronous · unhandled "error" crashes</td></tr>
+    <tr><td>readline</td><td><code>createInterface({ input: process.stdin, output: process.stdout })</code> · <code>rl.question(q, ans =&gt; {…; rl.close()})</code> · answers are strings · <code>readline/promises</code> for await</td></tr>
+    <tr><td>fs</td><td><code>readFile(p, "utf8", (err, data) =&gt; {})</code> · <code>writeFile</code> replaces · <code>appendFile</code> adds · both create · read missing → ENOENT · <code>*Sync</code> versions · <code>fs/promises</code></td></tr>
+    <tr><td>http</td><td><code>http.createServer((req, res) =&gt; {…}).listen(3000)</code> · <code>req.method</code>, <code>req.url</code> · <code>res.writeHead(200, {"Content-Type": …})</code> · <code>res.end(string)</code> always · body via <code>req.on("data")</code>/<code>("end")</code></td></tr>
+    <tr><td>Events+ <span class="newtag">New</span></td><td><code>const [x] = await once(emitter, "ready")</code> · more than 10 listeners on one event → leak warning: you’re probably adding <code>on()</code> in a loop or request handler</td></tr>
+    <tr><td>Streams <span class="newtag">New</span></td><td><code>await pipeline(fs.createReadStream(a), fs.createWriteStream(b))</code> · file line by line: <code>for await (const line of readline.createInterface({ input: fs.createReadStream(f), crlfDelay: Infinity }))</code></td></tr>
+    <tr><td>http+ <span class="newtag">New</span></td><td><code>const url = new URL(req.url, `http://${req.headers.host}`)</code> · <code>url.pathname</code> · <code>url.searchParams.get("q")</code> · <code>curl -i -X POST URL -H "Content-Type: application/json" -d '{…}'</code> · <code>fetch()</code> built in</td></tr>
+  </table></div>
+  <div class="box next-box"><div class="lbl" data-ico="⏭️">Next in the series</div><p><b>Express</b>: the same notes API in a fraction of the code, with routing, <code>req.params</code>, <code>req.query</code>, <code>express.json()</code> and <code>res.json()</code>.</p></div>
+  <h3>Sources for the added material</h3>
+  <ul class="src-list">
+    <li><a href="https://nodejs.org/api/events.html">Node.js docs: events</a> (<code>once()</code>, <code>setMaxListeners</code>, the default limit of 10)</li>
+    <li><a href="https://nodejs.org/api/readline.html">Node.js docs: readline</a> (reading a file line by line with <code>for await</code>)</li>
+    <li><a href="https://nodejs.org/api/stream.html">Node.js docs: stream</a> (<code>pipeline</code>) and <a href="https://nodejs.org/api/fs.html">fs</a> (<code>recursive</code> options, <code>cp</code>, <code>rm</code>)</li>
+    <li><a href="https://nodejs.org/api/url.html">Node.js docs: URL</a> (<code>pathname</code>, <code>searchParams</code>) and <a href="https://nodejs.org/api/http.html">http</a></li>
+    <li><a href="https://flaviocopes.com/node-builtins/">Flavio Copes: Node.js built-ins that replaced npm packages</a>: <code>fetch</code> stable from Node 21, <code>--watch</code> from 22</li>
+  </ul>
+  <p style="color:var(--muted);font-size:15px">Version facts checked on 31 October 2026. Node moves fast: re-check nodejs.org before you publish.</p>
+</section>
+</div></main></div>
+<script>
+const QZ = {
+t1:[
+ {q:"What does this print?",c:'const arr = [1, 2];\narr.push(3);\nconsole.log(arr.length);',o:["2","3","TypeError: Assignment to constant variable","undefined"],a:1,e:"const stops reassigning the variable, but you can still change the array inside it. push adds 3, so length is 3."},
+ {q:"users = [{id:1},{id:2}]. What does users.find(u => u.id === 5) return?",o:["-1","null","undefined","an empty array []"],a:2,e:"find returns the first match or undefined. findIndex is the one that returns -1."},
+ {q:"What is the result of \"5\" + 3?",o:["8","\"53\"","NaN","TypeError"],a:1,e:"+ with a string glues text together. That's why you must Number() values from req.params, req.query and process.argv."},
+ {q:"Which correctly gets name and email out of req.body?",o:["const [name, email] = req.body;","const { name, email } = req.body;","const name, email = req.body;","const { req.body.name, req.body.email };"],a:1,e:"Objects destructure with curly braces. Square brackets are for arrays."},
+ {q:"Where can you use await?",o:["Anywhere in any file","Only inside an async function (or top level of an ES module)","Only inside callbacks","Only with setTimeout"],a:1,e:"await must be inside an async function. ES modules also allow top-level await."},
+ {q:"What does this print?",c:'console.log("A");\nsetTimeout(() => console.log("B"), 0);\nconsole.log("C");',o:["A B C","A C B","B A C","C A B"],a:1,e:"All synchronous code runs first. The setTimeout callback waits until the current code finishes, even with 0 ms."}
+],
+t2:[
+ {q:"A user is logged in but tries to delete someone else's post. Best status code?",o:["401 Unauthorized","403 Forbidden","404 Not Found","500 Internal Server Error"],a:1,e:"401 = we don't know who you are (not logged in). 403 = we know who you are, and you're not allowed."},
+ {q:"In http://localhost:3000/users/42?sort=name, which part is the query string?",o:["/users/42","localhost:3000","?sort=name","42"],a:2,e:"Everything after ? is the query string. In Express you read it from req.query."},
+ {q:"\"HTTP is stateless\" means:",o:["The server can't store data in a database","Each request is independent; the server doesn't remember previous requests by default","Responses can't have a status","Only GET requests are allowed"],a:1,e:"Stateless means every request must carry everything needed (like an auth token). Databases still store data."},
+ {q:"Which status code means \"created successfully\"?",o:["200","201","204","302"],a:1,e:"201 Created is the standard response for a successful POST that made a new resource."},
+ {q:"Why must database passwords live on the backend and not the frontend?",o:["The frontend is too slow","Anything sent to the user's device can be read by the user","Browsers can't store strings","HTTP forbids it"],a:1,e:"All frontend code is downloaded to the user's browser, where anyone can open DevTools and read it."}
+],
+t3:[
+ {q:"Node.js is best described as:",o:["A programming language","A JavaScript framework like React","A runtime that runs JavaScript outside the browser","A database"],a:2,e:"Node = V8 engine + system APIs (fs, http…). JavaScript is the language; Express is the framework."},
+ {q:"Which of these does NOT exist in Node?",o:["console.log","setTimeout","document.getElementById","process.argv"],a:2,e:"document is the browser's web page. Node has no page, so no DOM."},
+ {q:"Which command creates a package.json with default answers?",o:["npm start","npm init -y","node init","npm create package"],a:1,e:"npm init -y skips all the questions and writes a default package.json."},
+ {q:"Why shouldn't you commit node_modules to Git?",o:["It contains your secrets","It's huge and can be recreated exactly with npm install from package.json + package-lock.json","Git can't store JavaScript","It makes Node slower"],a:1,e:"node_modules is regenerated from package.json and the lockfile, so it goes in .gitignore."},
+ {q:"Node is \"non-blocking\" means:",o:["It runs on many threads at once","While waiting for I/O (files, DB, network), it keeps handling other work and runs your callback later","It never crashes","It blocks pop-ups"],a:1,e:"Slow I/O is handed off; the single JS thread moves on to the next task and comes back when the result is ready."}
+],
+t4:[
+ {q:"math.js contains: exports = { add }. In app.js, require(\"./math\").add is:",o:["the add function","undefined","an error","null"],a:1,e:"Reassigning exports only redirects the local shortcut. Node returns module.exports, which is still the original empty object."},
+ {q:"How do you import a local file utils.js in CommonJS?",o:['require("utils")','require("./utils")','import "./utils"','include("utils.js")'],a:1,e:"Local files need ./ or ../. Without it, Node looks in core modules and node_modules."},
+ {q:"Which makes Node treat .js files as ES modules?",o:['"main": "module" in package.json','"type": "module" in package.json','Writing "use esm" at the top','Installing the esm package from npm'],a:1,e:'"type": "module" in package.json (or using the .mjs extension).'},
+ {q:"A module file has console.log(\"loaded\") at the top. Three other files require it. How many times is \"loaded\" printed?",o:["0","1","3","4"],a:1,e:"Modules are cached after the first require. Later requires get the cached exports without re-running the file."},
+ {q:"Correct ES module import of a default export and a named export `sub`?",o:['import { multiply, sub } from "./math.js"','import multiply, { sub } from "./math.js"','const { multiply, sub } = import("./math.js")','import multiply, sub from "./math.js"'],a:1,e:"Default import comes first without braces; named imports go inside { }."}
+],
+t5:[
+ {q:"Running node app.js hello world. What is process.argv[2]?",o:['"node"','"app.js"','"hello"','"world"'],a:2,e:"[0] is the node path, [1] the script path, [2] the first of your arguments."},
+ {q:"node add.js 2 3 with code console.log(process.argv[2] + process.argv[3]) prints:",o:["5","23","NaN","undefined"],a:1,e:"argv values are strings, so + concatenates \"2\" and \"3\". Use Number() first."},
+ {q:"What does process.argv.slice(2) give for node a.js x y?",o:['["x","y"]','["a.js","x","y"]','["node","a.js"]','"x y"'],a:0,e:"slice(2) returns a new array starting at index 2: just your arguments."},
+ {q:"Which gives a config value like the port from the environment?",o:["process.argv.PORT","process.env.PORT","process.config.PORT","require('env').PORT"],a:1,e:"Environment variables live in process.env. A common pattern: const PORT = process.env.PORT || 3000."},
+ {q:"process.exit(1) means:",o:["Exit successfully","Exit with an error code","Restart the process","Pause for 1 second"],a:1,e:"0 means success; any non-zero code signals failure to whatever ran the program."}
+],
+t6:[
+ {q:'path.join("/a/b", "../c", "d.txt") returns:',o:['"/a/b/../c/d.txt"','"/a/c/d.txt"','"/c/d.txt"','"a/c/d.txt"'],a:1,e:".. goes up one folder from /a/b to /a, then into c."},
+ {q:'path.extname("report.final.pdf") returns:',o:['"pdf"','".pdf"','".final.pdf"','"report"'],a:1,e:"extname returns the last extension, including the dot."},
+ {q:"Why use path.join instead of string concatenation?",o:["It's faster","It uses the correct separator for the OS and tidies extra slashes and ..","It checks the file exists","It reads the file"],a:1,e:"Windows uses backslashes. path.join handles separators and normalises the path. It never touches the disk."},
+ {q:"__dirname is:",o:["The folder you ran node from","The absolute path of the folder containing the current file","The project root, always","The user's home folder"],a:1,e:"__dirname is the current file's folder. process.cwd() is where you ran node from."},
+ {q:'path.basename("/home/me/app.js", ".js") returns:',o:['"app.js"','"app"','"/home/me"','".js"'],a:1,e:"The second argument removes that extension from the result."}
+],
+t7:[
+ {q:"What does this print?",c:'const E = require("events");\nconst e = new E();\ne.emit("hi");\ne.on("hi", () => console.log("hello"));',o:["hello","nothing","hello hello","Error"],a:1,e:"The listener was registered after the emit, so the event had no listeners at that moment and is lost."},
+ {q:"How do you send data with an event?",o:['e.emit("order", data)','e.on("order", data)','e.emit("order").send(data)','e.data("order", data)'],a:0,e:"Extra arguments to emit are passed to each listener: e.on(\"order\", (data) => …)."},
+ {q:"A listener added with once() and the event is emitted 3 times. How many times does it run?",o:["0","1","3","It throws"],a:1,e:"once listeners remove themselves after their first run."},
+ {q:"What does this print?",c:'e.on("x", () => console.log("A"));\ne.emit("x");\nconsole.log("B");',o:["B then A","A then B","Only A","Only B"],a:1,e:"emit is synchronous: all listeners finish before the next line runs."},
+ {q:"If an emitter emits \"error\" with no error listener:",o:["Nothing happens","Node throws and the process crashes","It's logged as a warning","It is retried"],a:1,e:"\"error\" is special. Always attach an error listener on emitters that might fail."}
+],
+t8:[
+ {q:"Your readline program asks a question, prints the answer, but never exits. Most likely cause?",o:["Wrong prompt text","rl.close() was never called","process.argv is empty","Missing \"utf8\""],a:1,e:"The interface keeps listening to stdin until you close it."},
+ {q:"What does createInterface need to read keyboard input and show prompts?",o:["{ input: process.stdin, output: process.stdout }","{ in: keyboard, out: screen }","{ input: fs, output: console }","Nothing"],a:0,e:"input is where answers come from; output is where prompts are written."},
+ {q:"rl.question(\"Age? \", (age) => console.log(age + 1)). User types 20. Output?",o:["21","201","NaN","20"],a:1,e:"Answers are strings, so \"20\" + 1 is \"201\". Use Number(age) + 1."},
+ {q:"How do you ask a second question only after the first is answered (callback style)?",o:["Call rl.question twice on consecutive lines","Put the second rl.question inside the first one's callback","Use setTimeout","Call rl.pause() between them"],a:1,e:"The answer only exists inside the callback, so the next question goes there. Or use readline/promises with await."}
+],
+t9:[
+ {q:"notes.txt contains \"A\". You run fs.writeFileSync(file, \"B\"). It now contains:",o:["A","AB","B","BA"],a:2,e:"writeFile replaces the whole file. appendFile adds to the end."},
+ {q:"fs.readFile(file, (err, data) => console.log(data)) without \"utf8\" prints:",o:["The text","A Buffer like <Buffer 48 69>","undefined","An error"],a:1,e:"Without an encoding, Node gives raw bytes (a Buffer). Pass \"utf8\" or call data.toString()."},
+ {q:"Reading a file that doesn't exist gives which error code?",o:["EACCES","ENOENT","EISDIR","404"],a:1,e:"ENOENT = Error NO ENTry: no such file or directory."},
+ {q:"appendFile on a file that doesn't exist yet:",o:["Throws ENOENT","Creates the file and writes the text","Does nothing","Asks for confirmation"],a:1,e:"Both writeFile and appendFile create the file if it's missing (as long as the folder exists)."},
+ {q:"In fs callbacks, the first argument is:",o:["The data","The error (or null if it worked)","The file name","The encoding"],a:1,e:"Node uses \"error-first\" callbacks: (err, data). Check err first and return."},
+ {q:"Which is the blocking (synchronous) version?",o:["fs.readFile","fs.readFileSync","fs.promises.readFile","fs.createReadStream"],a:1,e:"Methods ending in Sync block until done and return the result directly (use try/catch)."}
+],
+t10:[
+ {q:"What happens if your http handler never calls res.end()?",o:["Node sends an empty 200","The client waits until it times out","The server crashes","Express sends a 404"],a:1,e:"The response is never finished, so the browser keeps waiting."},
+ {q:"res.end({ ok: true }) in a raw http server:",o:["Sends JSON","Throws a TypeError; it needs a string or Buffer","Sends \"[object Object]\"","Sends nothing"],a:1,e:"res.end needs a string or Buffer. Use res.end(JSON.stringify({ ok: true }))."},
+ {q:"A request to /users?page=2. What is req.url in the http module?",o:['"/users"','"/users?page=2"','"page=2"','"http://localhost/users"'],a:1,e:"req.url is the path plus the query string, so comparisons with === \"/users\" fail."},
+ {q:"Which sets status 404 and the Content-Type header in one call?",o:['res.status(404)','res.writeHead(404, { "Content-Type": "text/plain" })','res.send(404)','res.header(404)'],a:1,e:"writeHead(status, headers) is the raw http method. res.status is an Express method."},
+ {q:"How does a raw http server read a POST body?",o:["req.body","Collect chunks with req.on(\"data\") and use them on req.on(\"end\")","req.read()","It can't"],a:1,e:"The body arrives as a stream. Express's express.json() does this for you and fills req.body."}
+],
+t11:[
+ {q:"Route app.get(\"/users/:id\"). Request GET /users/7?x=1. What is req.params.id?",o:["7 (number)",'"7" (string)','"7?x=1"',"undefined"],a:1,e:"Params are always strings. The query goes into req.query, not params."},
+ {q:"req.body is undefined in your POST route. Most likely fix?",o:["Use req.query instead","Add app.use(express.json()) before the routes","Restart the server","Use app.post twice"],a:1,e:"Express doesn't parse JSON bodies unless you add the express.json() middleware, before your routes."},
+ {q:"Routes registered: (1) GET /users/:id  (2) GET /users/new. Request GET /users/new runs:",o:["Route 1, with id = \"new\"","Route 2","Both","Neither (404)"],a:0,e:"Express picks the first match in registration order. Put specific routes above parameter routes."},
+ {q:"Which correctly sends a 404 with a JSON body?",o:['res.json(404, { error: "x" })','res.status(404).json({ error: "x" })','res.send(404).json({ error: "x" })','res.status = 404; res.json()'],a:1,e:"res.status() sets the code and returns res, so you chain .json() or .send()."},
+ {q:"GET /search?q=node&limit=5. How do you read limit?",o:["req.params.limit","req.query.limit","req.body.limit","req.limit"],a:1,e:"Query string values are in req.query (as strings)."},
+ {q:"\"Cannot set headers after they are sent\" usually means:",o:["express.json is missing","You sent two responses for one request (often a missing return)","The port is taken","The route is misspelled"],a:1,e:"After res.json in an if-block, code continues unless you return, so a second response is attempted."}
+],
+t12:[
+ {q:"Most RESTful route to delete book 7?",o:["POST /books/7/delete","GET /deleteBook?id=7","DELETE /books/7","DELETE /book/delete/7"],a:2,e:"The HTTP method is the verb; the URL names the resource with a plural noun."},
+ {q:"Existing {id:1, name:\"A\", age:20}. PUT /users/1 with {name:\"B\"} should give:",o:['{id:1, name:"B", age:20}','{id:1, name:"B"}','{name:"B"}','No change'],a:1,e:"PUT replaces the whole resource, so unspecified fields disappear. PATCH would keep age."},
+ {q:"Which method is NOT idempotent?",o:["GET","PUT","DELETE","POST"],a:3,e:"Sending the same POST twice creates two resources. The others give the same end state when repeated."},
+ {q:"Best status after successfully deleting with nothing to return?",o:["200","201","204","404"],a:2,e:"204 No Content: success, empty body."},
+ {q:"Best route to get the posts of user 3?",o:["GET /getUserPosts/3","GET /users/3/posts","POST /users/posts?id=3","GET /posts/user=3"],a:1,e:"Nested resources express relationships: /users/3/posts."},
+ {q:"app.delete(\"/books/:id\", (req, res) => { const i = books.findIndex(b => b.id === Number(req.params.id)); books.splice(i, 1); res.status(204).send(); }); Which step of the recipe is missing?",o:["① Read the input","③ Find the item","④ Not found → return 404","⑥ Respond with the right status"],a:2,e:"If no book matches, findIndex returns -1 and splice(-1, 1) silently deletes the LAST book. Check for -1 and return 404 first."}
+],
+t13:[
+ {q:"A middleware neither calls next() nor sends a response. The request:",o:["Moves to the next route anyway","Hangs (the client waits)","Gets an automatic 404","Crashes the server"],a:1,e:"Express only continues when you call next(). Otherwise the request is stuck."},
+ {q:"How does Express recognise error-handling middleware?",o:["Its name contains \"error\"","It has exactly four parameters (err, req, res, next)","It's registered first","It uses app.error()"],a:1,e:"The four-parameter signature is what makes it an error handler. Register it last."},
+ {q:"What does next(err) do?",o:["Calls the next normal middleware","Skips to the error-handling middleware","Ends the request with 500 directly","Restarts the route"],a:1,e:"Passing anything to next() means \"an error happened\": Express jumps to error handlers."},
+ {q:"app.get(\"/admin\", auth, handler). If auth sends res.status(401), handler:",o:["Runs after auth","Never runs","Runs first","Runs twice"],a:1,e:"Responding ends the chain. handler only runs if auth calls next()."},
+ {q:"Middleware order: app.get(\"/\", ...sends response...) is registered, then app.use(logger). Does logger run for GET /?",o:["Yes","No: the route already responded and never called next()","Only if logger is async","Only in production"],a:1,e:"Middleware runs in registration order. The route ended the chain before logger was reached."},
+ {q:"Which built-in middleware parses HTML form submissions?",o:["express.json()","express.urlencoded({ extended: true })","express.static()","express.form()"],a:1,e:"express.urlencoded parses application/x-www-form-urlencoded bodies (normal HTML forms)."}
+],
+t14:[
+ {q:"router.get(\"/:id\") in a router mounted with app.use(\"/api/users\", router) matches:",o:["/:id","/api/:id","/api/users/:id","/users/:id"],a:2,e:"Final path = mount prefix + router path."},
+ {q:"Router.use() requires a middleware function but got a Object. Likely cause?",o:["Missing express.json()","The router file doesn't do module.exports = router","Wrong HTTP method","Port in use"],a:1,e:"Without the export, require gives an empty object {} instead of the router."},
+ {q:"router.use(auth) inside a router mounted at /admin protects:",o:["Every route in the whole app","Only routes in that router (under /admin)","Only GET routes","Nothing until restart"],a:1,e:"Router-level middleware only applies to that router's routes."},
+ {q:"Which creates a router?",o:["express.Router()","new express()","app.router()","require(\"router\")"],a:0,e:"const router = express.Router(); then router.get/post/… and module.exports = router."}
+],
+t15:[
+ {q:"With app.use(express.static(\"public\")), the file public/img/cat.png is at:",o:["/public/img/cat.png","/img/cat.png","/static/img/cat.png","/cat.png"],a:1,e:"The folder name is not part of the URL."},
+ {q:"With app.use(\"/assets\", express.static(\"public\")), public/app.js is at:",o:["/app.js","/assets/app.js","/public/app.js","/assets/public/app.js"],a:1,e:"The first argument is a URL prefix; the folder name is still not included."},
+ {q:"Why prefer express.static(path.join(__dirname, \"public\"))?",o:["It's faster","It works no matter which folder you run node from","It allows uploads","It's required in Express 5"],a:1,e:"A relative \"public\" resolves from process.cwd(); __dirname anchors it to the file's folder."},
+ {q:"res.sendFile(\"views/help.html\") gives an error. Why?",o:["sendFile needs an absolute path","HTML isn't allowed","Wrong status code","Missing express.json()"],a:0,e:"Use res.sendFile(path.join(__dirname, \"views\", \"help.html\"))."}
+],
+t16:[
+ {q:"In MVC, which layer should call res.status(404).json(...)?",o:["Service","Model","Controller","Route file"],a:2,e:"Only controllers deal with req and res. Services return data or throw; controllers turn that into HTTP."},
+ {q:"Where does a business rule like \"email must be unique\" belong?",o:["Route","Service","Static folder","package.json"],a:1,e:"Business rules live in services so they can be reused and tested without HTTP."},
+ {q:"What does a route file contain?",o:["Database queries","The mapping of method + path → middleware + controller","HTML templates","Environment variables"],a:1,e:"Routes are just a map. No logic."},
+ {q:"In an Express JSON API, what plays the role of the \"View\"?",o:["The service","The JSON response sent to the client","The router","The database"],a:1,e:"APIs don't render HTML; the JSON output is the presentation layer."},
+ {q:"Main benefit of separating controllers and services?",o:["Faster code execution","Separation of concerns: easier to read, test, reuse and change","Fewer files","Required by Node"],a:1,e:"Each layer has one job. Swapping an array for Prisma only touches the service/model."}
+],
+t17:[
+ {q:"What is an ORM?",o:["A database engine","A tool that lets you work with database tables through objects/functions in your language instead of raw SQL","A type of HTTP request","A Node core module"],a:1,e:"Object-Relational Mapper: maps tables to objects. Prisma is one."},
+ {q:"npx prisma init creates:",o:["node_modules","prisma/schema.prisma and .env","A migrations folder with SQL","A running database"],a:1,e:"init scaffolds the schema file and a .env with a DATABASE_URL placeholder."},
+ {q:"Which package is the CLI (dev dependency)?",o:["@prisma/client","prisma","prisma-cli","node-prisma"],a:1,e:"npm i -D prisma for the CLI; npm i @prisma/client for runtime use in your code."},
+ {q:"In postgresql://admin:pw@localhost:5432/shop, the database name is:",o:["admin","pw","localhost","shop"],a:3,e:"Format: protocol://user:password@host:port/database."},
+ {q:"Which tool opens a GUI to browse your data?",o:["npx prisma studio","npx prisma view","npx prisma open","npm run db"],a:0,e:"Prisma Studio runs in the browser and shows your tables like spreadsheets."}
+],
+t18:[
+ {q:"What does the ? in `name String?` mean?",o:["Unique","Optional (nullable)","A list","Auto-generated"],a:1,e:"Fields are required by default; ? makes them optional."},
+ {q:"Which makes an auto-incrementing integer primary key?",o:["id Int @unique","id Int @id @default(autoincrement())","id Int @default(1)","id @id Int++"],a:1,e:"@id marks the primary key; @default(autoincrement()) generates 1, 2, 3…"},
+ {q:"In a one-to-many User→Post relation, which field is a real database column?",o:["User.posts","Post.author","Post.authorId","All three"],a:2,e:"authorId is the stored foreign key. posts and author are virtual relation fields Prisma uses for joins."},
+ {q:"@@unique([firstName, lastName]) means:",o:["Each name is unique separately","The combination of first and last name must be unique","Both fields are optional","It creates two indexes"],a:1,e:"@@ is model-level: the pair together must be unique."},
+ {q:"Which attribute auto-updates a timestamp whenever the row changes?",o:["@default(now())","@updatedAt","@timestamp","@default(update())"],a:1,e:"@default(now()) sets the time once on create; @updatedAt refreshes on every update."},
+ {q:"Which field makes a relation one-to-one rather than one-to-many?",o:["Adding ? to the foreign key","Adding @unique to the foreign key","Using Int instead of String","Adding @id to both"],a:1,e:"If the foreign key is unique, each user can be referenced by at most one profile."},
+ {q:"Post has: author User @relation(fields: [authorId], references: [id], onDelete: Cascade). A user with 3 posts is deleted. What happens?",o:["The delete is blocked","The user and all 3 posts are deleted","The posts stay, with authorId set to null","Only the posts are deleted"],a:1,e:"Cascade passes the delete down to related rows. Restrict would block it; SetNull would keep the posts with a null authorId."}
+],
+t19:[
+ {q:"What does npx prisma migrate dev --name init do?",o:["Only formats the schema","Creates a SQL migration file, applies it to the DB, and regenerates Prisma Client","Deletes the database","Deploys to production"],a:1,e:"migrate dev = generate the migration SQL + apply it + run prisma generate."},
+ {q:"Which command applies pending migrations in production without creating new ones?",o:["migrate dev","migrate deploy","db push","migrate reset"],a:1,e:"migrate deploy is the safe, non-interactive command for production."},
+ {q:"Which command wipes all data and reapplies every migration?",o:["migrate status","migrate reset","generate","format"],a:1,e:"migrate reset drops the database. Development only."},
+ {q:"Difference between db push and migrate dev?",o:["No difference","db push syncs the DB without creating migration files (no history); migrate dev creates versioned files","db push is for production","migrate dev doesn't touch the DB"],a:1,e:"db push is for quick prototyping; migrate dev keeps a history you can replay elsewhere."},
+ {q:"You add `age Int` (required) to a table that already has rows. migrate dev complains. Fix?",o:["Delete package.json","Make it `age Int?` or give it @default(0)","Run npm install","Rename the model"],a:1,e:"Existing rows have no age value, so the field must be optional or have a default."},
+ {q:"Where are migration files stored?",o:["node_modules/.prisma","prisma/migrations/<timestamp>_<name>/migration.sql",".env","src/models"],a:1,e:"Each migration gets a timestamped folder containing migration.sql. Commit these to Git."}
+],
+extra:[
+ {t:"Express routing",q:"What does this route return for GET /api/items/3 when items = [{id:3, n:\"pen\"}]?",c:'app.get("/api/items/:id", (req, res) => {\n  const item = items.find(i => i.id === req.params.id);\n  if (!item) return res.status(404).json({ error: "nope" });\n  res.json(item);\n});',o:['{"id":3,"n":"pen"}','404 {"error":"nope"}',"500 error","It hangs"],a:1,e:"req.params.id is the string \"3\", and 3 === \"3\" is false. Use Number(req.params.id)."},
+ {t:"Middleware",q:"What is logged for GET /x?",c:'app.use((req, res, next) => { console.log(1); next(); console.log(3); });\napp.get("/x", (req, res) => { console.log(2); res.send("ok"); });',o:["1 2 3","1 3 2","1 2","2 1 3"],a:0,e:"next() runs the following handler synchronously, then control returns and the line after next() runs."},
+ {t:"fs",q:"What is printed?",c:'fs.writeFileSync("a.txt", "x");\nfs.appendFileSync("a.txt", "y");\nfs.writeFileSync("a.txt", "z");\nconsole.log(fs.readFileSync("a.txt", "utf8"));',o:["xyz","z","xy","yz"],a:1,e:"The last writeFileSync replaces everything with \"z\"."},
+ {t:"Events",q:"What does this print?",c:'e.on("go", n => console.log("A" + n));\ne.once("go", n => console.log("B" + n));\ne.emit("go", 1);\ne.emit("go", 2);',o:["A1 B1 A2 B2","A1 B1 A2","B1 A1 A2","A1 A2 B1"],a:1,e:"Listeners run in registration order. The once listener is removed after the first emit."},
+ {t:"Modules",q:"counter.js: let c = 0; module.exports = () => ++c;  Two files each require it and call it once. Second call returns:",o:["1","2","0","undefined"],a:1,e:"Both files get the same cached module, sharing the same c."},
+ {t:"REST",q:"An API endpoint is POST /api/orders. It succeeds. Which response is most correct?",o:["200 with no body","201 with the created order","204","302 redirect"],a:1,e:"Creating returns 201 Created, usually with the new resource in the body."},
+ {t:"Router",q:"app.use(\"/v1\", apiRouter); inside apiRouter: router.use(\"/books\", booksRouter); inside booksRouter: router.get(\"/:id\"). Full path?",o:["/books/:id","/v1/:id","/v1/books/:id","/:id"],a:2,e:"Prefixes stack: /v1 + /books + /:id."},
+ {t:"process",q:"node app.js --name=Asha. What is process.argv.length?",o:["1","2","3","4"],a:2,e:"[node path, script path, \"--name=Asha\"]: three items."},
+ {t:"Prisma model",q:"Model `model BlogPost {…}`. In Prisma Client you access it as:",o:["prisma.BlogPost","prisma.blogPost","prisma.blogposts","prisma.blog_post"],a:1,e:"Model names become lower camelCase properties on the client."},
+ {t:"http",q:"Which line has a bug?",c:'1 http.createServer((req, res) => {\n2   res.writeHead(200, { "Content-Type": "application/json" });\n3   res.end({ ok: true });\n4 }).listen(3000);',o:["Line 1","Line 2","Line 3","Line 4"],a:2,e:"res.end needs a string: res.end(JSON.stringify({ ok: true }))."},
+ {t:"Static files",q:"public/index.html exists and app.use(express.static(\"public\")) is registered before app.get(\"/\", …). GET / serves:",o:["The app.get route","public/index.html","404","Both"],a:1,e:"Static middleware runs first, finds index.html and responds; the route is never reached."},
+ {t:"JavaScript",q:"What does [3, 8, 1].filter(n => n > 2).map(n => n * 10) return?",o:["[30, 80]","[30, 80, 10]","[8]","80"],a:0,e:"filter keeps 3 and 8, map multiplies each by 10."}
+]};
+const TOPIC_NAMES = {t1:"JavaScript",t2:"Backend",t3:"Node.js",t4:"Modules",t5:"process",t6:"path",t7:"Events",t8:"readline",t9:"fs",t10:"http",t11:"Express routing",t12:"REST",t13:"Middleware",t14:"Router",t15:"Static files",t16:"MVC",t17:"Prisma intro",t18:"Prisma model",t19:"Prisma migrate"};
+</script>
+<script>
+QZ.v3 = [
+ {q:'await once(db, "ready") resolves with:',o:["undefined","An array of the arguments passed to emit","The emitter itself","true or false"],a:1,e:"once() resolves with an array of the emit arguments, so you usually destructure: const [status] = await once(...)."},
+ {q:"You see MaxListenersExceededWarning. Most likely cause?",o:["Too many users","A listener being added again and again, e.g. inside a request handler","A misspelled event name","An old Node version"],a:1,e:"The warning fires past 10 listeners on one event. It almost always means a listener is registered in a loop or per request."},
+ {q:"Best way to copy a 2 GB file?",o:["readFileSync, then writeFileSync","Streams joined with pipeline","JSON.parse, then JSON.stringify","readline.question"],a:1,e:"Streams move the file in small chunks, so it never has to fit in memory."},
+ {q:'Request: GET /api/users?page=2. What is new URL(req.url, base).pathname?',o:['"/api/users?page=2"','"/api/users"','"page=2"','"2"'],a:1,e:"pathname has no query string; read query values with url.searchParams.get()."},
+ {q:'In the notes API, why emit "note:created" instead of writing the log inside the route?',o:["Events are faster than fs","The route doesn't need to know who reacts, so you can add listeners later without touching it","fs can't be used inside routes","HTTP requires events"],a:1,e:"That decoupling is the whole point of the emitter pattern."},
+ {q:"for await (const line of rl), where rl reads a file stream:",o:["Loads the whole file first","Gives one line at a time and finishes when the file ends","Only works with process.stdin","Needs rl.question"],a:1,e:"readline works on any readable stream; the loop ends when the stream does."},
+ {q:"The notes API is restarted. GET /notes now returns:",o:["An empty array","The notes saved before the restart","A 500 error","404"],a:1,e:"Notes are written to notes.json, so they survive a restart. In-memory arrays would not."}
+];
+</script>
+<script>
+(function(){
+"use strict";
+const $ = (s, r=document) => r.querySelector(s);
+const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
+const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+
+/* ---------------- syntax highlighting ---------------- */
+const KW = "const|let|var|function|return|if|else|for|of|in|while|new|class|extends|async|await|try|catch|finally|throw|require|module|exports|import|from|export|default|true|false|null|undefined|this|typeof|switch|case|break|super|constructor";
+const RE_JS = new RegExp("(\\/\\/[^\\n]*|\\/\\*[\\s\\S]*?\\*\\/)|(`(?:\\\\[\\s\\S]|[^`\\\\])*`|\"(?:\\\\.|[^\"\\\\\\n])*\"|'(?:\\\\.|[^'\\\\\\n])*')|\\b("+KW+")\\b|\\b(\\d+(?:\\.\\d+)?)\\b|([A-Za-z_$][\\w$]*)(?=\\()","g");
+const RE_SH = /(#[^\n]*)|("(?:\\.|[^"\\\n])*"|'[^'\n]*')|\b(npm|npx|node|curl|prisma)\b/g;
+const RE_PR = /(\/\/[^\n]*)|("(?:\\.|[^"\\\n])*")|\b(model|enum|generator|datasource)\b|(@@?\w+(?:\([^)\n]*\))?)|\b(String|Int|Float|Boolean|DateTime|Json|Decimal|BigInt|Bytes)\b/g;
+function hl(src, lang){
+  if(lang === "out") return esc(src);
+  let re, map;
+  if(lang === "sh"){ re = RE_SH; map = ["c","s","k"]; }
+  else if(lang === "prisma"){ re = RE_PR; map = ["c","s","k","n","f"]; }
+  else { re = RE_JS; map = ["c","s","k","n","f"]; }
+  re.lastIndex = 0;
+  let out = "", last = 0, m;
+  while((m = re.exec(src))){
+    out += esc(src.slice(last, m.index));
+    let cls = "";
+    for(let i=1;i<m.length;i++){ if(m[i] !== undefined){ cls = map[i-1]; break; } }
+    out += `<span class="tk-${cls}">${esc(m[0])}</span>`;
+    last = re.lastIndex;
+    if(m[0].length === 0) re.lastIndex++;
+  }
+  return out + esc(src.slice(last));
+}
+function hlEl(code){
+  const lang = code.dataset.lang || "js";
+  const fname = code.querySelector(".fname");
+  if(fname) fname.remove();
+  code.innerHTML = hl(code.textContent, lang);
+  if(fname) code.prepend(fname);
+}
+$$("code[data-lang]").forEach(hlEl);
+
+/* copy buttons on substantial code blocks */
+$$("pre").forEach(pre => {
+  const code = pre.querySelector("code");
+  if(!code || pre.closest(".quiz") || pre.closest(".lab")) return;
+  if(code.textContent.split("\n").length < 4) return;
+  const b = document.createElement("button");
+  b.className = "copy"; b.type = "button"; b.textContent = "Copy";
+  b.addEventListener("click", () => {
+    const clone = code.cloneNode(true); const f = clone.querySelector(".fname"); if(f) f.remove();
+    const text = clone.textContent;
+    const done = () => { b.textContent = "Copied"; setTimeout(() => b.textContent = "Copy", 1400); };
+    if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(text).then(done, () => { b.textContent = "Select and copy"; }); }
+    else b.textContent = "Select and copy";
+  });
+  pre.appendChild(b);
+});
+
+/* ---------------- theme ---------------- */
+const root = document.documentElement;
+const savedTheme = store.get("bx-theme", null);
+if(savedTheme) root.setAttribute("data-theme", savedTheme);
+$("#themeBtn").addEventListener("click", () => {
+  const cur = root.getAttribute("data-theme") || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  const next = cur === "dark" ? "light" : "dark";
+  root.setAttribute("data-theme", next); store.set("bx-theme", next);
+});
+
+
+/* ---------------- navigation + progress (video subset) ---------------- */
+const GROUPS = [["node","Node core modules"],["exam","Practice"]];
+const sections = $$("section.topic");
+let done = new Set(store.get("yt-v3-done", []));
+const nav = $("#navLines");
+GROUPS.forEach(([g, name]) => {
+  const secs = sections.filter(s => s.dataset.group === g);
+  if(!secs.length) return;
+  const wrap = document.createElement("div");
+  wrap.className = "line-group"; wrap.dataset.group = g;
+  wrap.innerHTML = `<h4>${name}</h4><ul class="stations">${secs.map(s => `<li><a href="#${s.id}" data-id="${s.id}"><span class="dot" aria-hidden="true"></span><span class="num">${s.dataset.num}</span><span>${esc(s.dataset.title)}</span></a></li>`).join("")}</ul>`;
+  nav.appendChild(wrap);
+});
+const studyIds = sections.filter(s => /^t\d+$/.test(s.id)).map(s => s.id);
+function paintProgress(){
+  $$("#navLines a").forEach(a => {
+    const on = done.has(a.dataset.id);
+    a.classList.toggle("done", on);
+    a.setAttribute("aria-label", `${a.textContent.trim()}${on ? " (understood)" : ""}`);
+  });
+  const n = studyIds.filter(id => done.has(id)).length;
+  $("#progTxt").textContent = `${n} of ${studyIds.length} stops understood`;
+  $("#progBar").style.width = (n / studyIds.length * 100) + "%";
+  $$("#mapDots circle").forEach(c => c.setAttribute("fill", done.has(c.dataset.id) ? c.dataset.col : "var(--surface)"));
+  $$(".done-btn").forEach(b => {
+    const on = done.has(b.dataset.id);
+    b.classList.toggle("on", on);
+    b.setAttribute("aria-pressed", on);
+    b.textContent = on ? "✓ Understood" : "Mark as understood";
+  });
+}
+studyIds.forEach(id => {
+  const sec = document.getElementById(id);
+  const row = document.createElement("div"); row.className = "done-row";
+  row.innerHTML = `<button class="done-btn" data-id="${id}" aria-pressed="false">Mark as understood</button>`;
+  sec.appendChild(row);
+});
+document.addEventListener("click", e => {
+  const b = e.target.closest(".done-btn"); if(!b) return;
+  const id = b.dataset.id;
+  done.has(id) ? done.delete(id) : done.add(id);
+  store.set("yt-v3-done", [...done]); paintProgress();
+});
+paintProgress();
+const links = new Map($$("#navLines a").map(a => [a.dataset.id, a]));
+if("IntersectionObserver" in window){
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(en => {
+      if(en.isIntersecting){
+        links.forEach(l => l.classList.remove("active"));
+        const l = links.get(en.target.id); if(l) l.classList.add("active");
+      }
+    });
+  }, {rootMargin:"-30% 0px -60% 0px"});
+  sections.forEach(s => io.observe(s));
+}
+
+/* mobile menu */
+const rail = $("#rail"), menuBtn = $("#menuBtn");
+const setMenu = open => { rail.classList.toggle("open", open); menuBtn.setAttribute("aria-expanded", open); };
+menuBtn.addEventListener("click", () => setMenu(!rail.classList.contains("open")));
+rail.addEventListener("click", e => { if(e.target.closest("a")) setMenu(false); });
+document.addEventListener("keydown", e => { if(e.key === "Escape") setMenu(false); });
+document.addEventListener("click", e => { if(rail.classList.contains("open") && !rail.contains(e.target) && e.target !== menuBtn && !menuBtn.contains(e.target)) setMenu(false); });
+
+/* ---------------- search + reading bar ---------------- */
+const sIn = $("#searchIn"), sMsg = $("#searchMsg");
+const idx = sections.map(s => [s, s.textContent.toLowerCase()]);
+const introBits = [$("#top"), ...$$(".col > section.box")];
+sIn.addEventListener("input", () => {
+  const raw = sIn.value.trim(), term = raw.toLowerCase();
+  let n = 0;
+  idx.forEach(([s, txt]) => {
+    const hit = !term || txt.includes(term);
+    s.hidden = !hit; if(hit && term) n++;
+    const l = links.get(s.id); if(l) l.parentElement.hidden = !hit;
+  });
+  introBits.forEach(el => { if(el) el.hidden = !!term; });
+  $$(".line-group").forEach(g => g.hidden = !g.querySelector("li:not([hidden])"));
+  sMsg.textContent = !term ? "" : n ? `${n} stop${n === 1 ? "" : "s"} mention "${raw}"` : `Nothing mentions "${raw}". Try a shorter word.`;
+  if(term) window.scrollTo(0, 0);
+});
+sIn.addEventListener("keydown", e => { if(e.key === "Escape"){ sIn.value = ""; sIn.dispatchEvent(new Event("input")); } });
+const readBar = $("#readBar");
+const onScroll = () => { const h = document.documentElement.scrollHeight - innerHeight; readBar.style.transform = `scaleX(${h > 0 ? Math.min(1, scrollY / h) : 0})`; };
+addEventListener("scroll", onScroll, {passive:true}); addEventListener("resize", onScroll); onScroll();
+
+/* ---------------- drill data ---------------- */
+const TOPICS = ["Events","readline","fs","http"];
+/* ---------------- drill data ---------------- */
+const ALL_BLANKS = [
+ {t:"JavaScript",p:"Get the one student whose id is 2 (or undefined if there isn't one).",c:'const student = students.{{find}}(s => s.id === 2);'},
+ {t:"JavaScript",p:"Find a student's position so you can delete them, handling not found.",c:'const index = students.{{findIndex}}(s => s.id === id);\nif (index === {{-1}}) return res.status(404).json({ error: "Not found" });\nstudents.{{splice}}(index, 1);'},
+ {t:"JavaScript",p:"Keep only passing students, then turn the list into names.",c:'const names = students\n  .{{filter}}(s => s.marks >= 50)\n  .{{map}}(s => s.name);'},
+ {t:"JavaScript",p:"Object to JSON text, and back again.",c:'const text = JSON.{{stringify}}(obj);\nconst back = JSON.{{parse}}(text);'},
+ {t:"JavaScript",p:"Wait for a promise inside a function, catching failures.",c:'{{async}} function load() {\n  {{try}} {\n    const data = {{await}} fsp.readFile(file, "utf8");\n  } {{catch}} (err) {\n    console.error(err.message);\n  }\n}'},
+ {t:"JavaScript",p:"Pull fields out of the body, and copy an object with one field changed.",c:'const { name, email } = req.{{body}};\nconst updated = { {{...}}book, title: "New title" };'},
+ {t:"Modules",p:"Export two functions from math.js and import one in app.js (CommonJS).",c:'// math.js\n{{module.exports}} = { add, sub };\n\n// app.js\nconst { add } = {{require}}("{{./math|./math.js}}");'},
+ {t:"Modules",p:"The same idea with ES Modules.",c:'// math.js\n{{export}} const add = (a, b) => a + b;\n\n// app.js\n{{import}} { add } {{from}} "./math.js";'},
+ {t:"Node.js",p:"Create package.json, add Express, and add nodemon as a dev-only dependency.",c:'npm {{init}} -y\nnpm {{install|i}} express\nnpm install {{-D|--save-dev}} nodemon'},
+ {t:"process",p:"Get only the user's arguments, read the port from the environment, and stop with an error code.",c:'const args = process.argv.{{slice}}({{2}});\nconst port = process.{{env}}.PORT || 3000;\nif (!args[0]) process.{{exit}}(1);'},
+ {t:"path",p:"Build a path to data/todos.json next to this file, and get its extension.",c:'const path = require("path");\nconst file = path.{{join}}({{__dirname}}, "data", "todos.json");\npath.{{extname}}(file); // ".json"'},
+ {t:"Events",p:"Create an emitter, listen for order, then fire it with data.",c:'const EventEmitter = require("{{events}}");\nconst shop = {{new}} EventEmitter();\nshop.{{on}}("order", (item) => console.log(item));\nshop.{{emit}}("order", "pizza");'},
+ {t:"readline",p:"Ask for a name in the terminal, print it, and let the program exit.",c:'const rl = readline.{{createInterface}}({\n  input: process.{{stdin}},\n  output: process.{{stdout}}\n});\nrl.{{question}}("Name? ", (name) => {\n  console.log(name);\n  rl.{{close}}();\n});'},
+ {t:"fs",p:"Read a text file with a callback, handling the error first.",c:'fs.readFile(file, "{{utf8|utf-8}}", ({{err}}, data) => {\n  if (err) {{return}} console.error(err.message);\n  console.log(data);\n});'},
+ {t:"fs",p:"Replace a file's contents, then add a line to the end (sync versions).",c:'fs.{{writeFileSync}}(file, "first line\\n");\nfs.{{appendFileSync}}(file, "second line\\n");'},
+ {t:"http",p:"A raw Node server that answers every request with JSON on port 3000.",c:'const http = require("http");\nconst server = http.{{createServer}}((req, res) => {\n  res.{{writeHead}}(200, { "Content-Type": "{{application/json}}" });\n  res.{{end}}(JSON.stringify({ ok: true }));\n});\nserver.{{listen}}(3000);'},
+ {t:"Express routing",p:"Create an app that can read JSON request bodies.",c:'const express = require("express");\nconst app = {{express()}};\napp.{{use}}(express.{{json}}());'},
+ {t:"Express routing",p:"Read a route parameter as a number, and a query string value.",c:'app.get("/users/{{:id}}", (req, res) => {\n  const id = {{Number}}(req.{{params}}.id);\n  const { sort } = req.{{query}};\n  res.json({ id, sort });\n});'},
+ {t:"Express routing",p:"Send the right responses: not found, created, and deleted with no body.",c:'return res.{{status}}(404).{{json}}({ error: "Not found" });\nres.status({{201}}).json(newBook);\nres.{{sendStatus}}({{204}});'},
+ {t:"REST",p:"Wire up the REST routes for a single book.",c:'app.{{get}}("/api/books/:id", getBook);       // read one\napp.{{patch}}("/api/books/:id", updateBook);  // change some fields\napp.{{put}}("/api/books/:id", replaceBook);   // replace it entirely\napp.{{delete}}("/api/books/:id", deleteBook); // remove it'},
+ {t:"Middleware",p:"A logger that lets the request carry on.",c:'const logger = (req, res, {{next}}) => {\n  console.log(req.method, req.url);\n  {{next()}};\n};\napp.{{use}}(logger);'},
+ {t:"Middleware",p:"A central error handler, registered last.",c:'app.use(({{err}}, req, res, {{next}}) => {\n  res.status(err.status || {{500}}).json({ error: err.message });\n});'},
+ {t:"Router",p:"A router file, mounted at /api/books.",c:'const router = express.{{Router}}();\nrouter.get("{{/}}", getAll);   // GET /api/books\n{{module.exports}} = router;\n\n// index.js\napp.use("{{/api/books}}", router);'},
+ {t:"Static files",p:"Serve the public folder, and send one file from a route.",c:'app.use(express.{{static}}(path.join(__dirname, "{{public}}")));\napp.get("/help", (req, res) => {\n  res.{{sendFile}}(path.join(__dirname, "views", "help.html"));\n});'},
+ {t:"Prisma model",p:"A User model: auto id, unique email, optional name, list of posts.",c:'model User {\n  id    Int    {{@id}} @default({{autoincrement()}})\n  email String {{@unique}}\n  name  String{{?}}\n  posts Post{{[]}}\n}'},
+ {t:"Prisma model",p:"The foreign key side of a one-to-many relation.",c:'model Post {\n  id       Int  @id @default(autoincrement())\n  author   User {{@relation}}(fields: [{{authorId}}], references: [{{id}}])\n  authorId {{Int}}\n}'},
+ {t:"Prisma migrate",p:"Set up Prisma, create and apply the first migration, then open the GUI.",c:'npx prisma {{init}}\nnpx prisma {{migrate dev}} --name init\nnpx prisma {{studio}}'}
+];
+
+const ALL_BUGS = [
+ {t:"Express routing",p:"GET /api/users/2 returns 404, even though users contains { id: 2, ... }.",c:['app.get("/api/users/:id", (req, res) => {','  const user = users.find(u => u.id === req.params.id);','  if (!user) return res.status(404).json({ error: "Not found" });','  res.json(user);','});'],a:[1],e:"req.params.id is the string \"2\", and 2 === \"2\" is false, so find never matches.",f:'  const user = users.find(u => u.id === Number(req.params.id));'},
+ {t:"Express routing",p:"Requesting a missing user crashes the server: Cannot set headers after they are sent.",c:['app.get("/api/users/:id", (req, res) => {','  const user = users.find(u => u.id === Number(req.params.id));','  if (!user) res.status(404).json({ error: "Not found" });','  res.json(user);','});'],a:[2],e:"Without return, the function carries on after sending the 404 and calls res.json a second time.",f:'  if (!user) return res.status(404).json({ error: "Not found" });'},
+ {t:"Express routing",p:"POST /api/books fails because req.body is undefined.",c:['const app = express();','app.post("/api/books", (req, res) => {','  const { title } = req.body;','  res.status(201).json({ title });','});','app.use(express.json());','app.listen(3000);'],a:[5],e:"Middleware runs in the order it is registered. express.json() comes after the route, so the body is never parsed for it.",f:'const app = express();\napp.use(express.json());   // before the routes'},
+ {t:"Express routing",p:"GET /users/me never reaches getMe.",c:['app.get("/users/:id", getUser);','app.get("/users/me", getMe);'],a:[0,1],e:"Express runs the first route that matches. /users/:id matches /users/me with id = \"me\", so the second route is never reached.",f:'app.get("/users/me", getMe);   // specific route first\napp.get("/users/:id", getUser);'},
+ {t:"Middleware",p:"Every request hangs until the browser gives up.",c:['app.use((req, res, next) => {','  console.log(req.method, req.url);','});','app.get("/", (req, res) => res.send("home"));'],a:[1,2],e:"The middleware neither responds nor calls next(), so the request never reaches the route.",f:'app.use((req, res, next) => {\n  console.log(req.method, req.url);\n  next();\n});'},
+ {t:"Middleware",p:"Errors passed to next(err) are not handled by this function.",c:['app.use((err, req, res) => {','  res.status(500).json({ error: err.message });','});'],a:[0],e:"Express only treats a middleware as an error handler when it has exactly four parameters.",f:'app.use((err, req, res, next) => {'},
+ {t:"Modules",p:"app.js runs require(\"./math\").add(1, 2) and gets: add is not a function.",c:['const add = (a, b) => a + b;','exports = { add };'],a:[1],e:"Reassigning exports only re-points the local shortcut. Node returns module.exports, which is still empty.",f:'module.exports = { add };'},
+ {t:"process",p:"node add.js 2 3 prints 23 instead of 5.",c:['const [a, b] = process.argv.slice(2);','console.log(a + b);'],a:[1],e:"argv values are always strings, so + joins them as text.",f:'console.log(Number(a) + Number(b));'},
+ {t:"Events",p:"Ready! is never printed.",c:['const e = new EventEmitter();','e.emit("ready");','e.on("ready", () => console.log("Ready!"));'],a:[1,2],e:"The event fires before anyone is listening, so it is lost. Register with on() first.",f:'e.on("ready", () => console.log("Ready!"));\ne.emit("ready");'},
+ {t:"readline",p:"The greeting prints, but the program never exits.",c:['const rl = readline.createInterface({ input: process.stdin, output: process.stdout });','rl.question("Name? ", (name) => {','  console.log(`Hi ${name}`);','});'],a:[2,3],e:"The interface keeps listening to the keyboard until rl.close() is called.",f:'rl.question("Name? ", (name) => {\n  console.log(`Hi ${name}`);\n  rl.close();\n});'},
+ {t:"fs",p:"It prints <Buffer 48 65 6c 6c 6f> instead of the text.",c:['const data = fs.readFileSync(path.join(__dirname, "notes.txt"));','console.log(data);'],a:[0],e:"Without an encoding, readFileSync returns raw bytes (a Buffer).",f:'const data = fs.readFileSync(path.join(__dirname, "notes.txt"), "utf8");'},
+ {t:"fs",p:"Sometimes the file ends up with only the first line in it.",c:['fs.writeFile(file, "first line\\n", (err) => { if (err) console.error(err); });','fs.appendFile(file, "second line\\n", (err) => { if (err) console.error(err); });'],a:[0,1],e:"The two callback calls run at the same time, so the append can finish first and then the write wipes it. Nest the append inside the write's callback, or use the Sync versions.",f:'fs.writeFile(file, "first line\\n", (err) => {\n  if (err) return console.error(err);\n  fs.appendFile(file, "second line\\n", (err) => { if (err) console.error(err); });\n});'},
+ {t:"http",p:"The server throws a TypeError on the first request.",c:['http.createServer((req, res) => {','  res.writeHead(200, { "Content-Type": "application/json" });','  res.end({ ok: true });','}).listen(3000);'],a:[2],e:"res.end only accepts a string or a Buffer, not an object.",f:'  res.end(JSON.stringify({ ok: true }));'},
+ {t:"Router",p:"GET /api/books/5 gives 404, but /api/books/api/books/5 works.",c:['// routes/books.js','router.get("/api/books/:id", getBook);','module.exports = router;','// index.js','app.use("/api/books", router);'],a:[1],e:"Router paths are relative to where the router is mounted, so the prefix ends up in the URL twice.",f:'router.get("/:id", getBook);'},
+ {t:"Static files",p:"The page loads with no styling: the CSS request is a 404.",c:['app.use(express.static(path.join(__dirname, "public")));','// in public/index.html:','// <link rel="stylesheet" href="/public/style.css">'],a:[2],e:"The folder name is not part of the URL. public/style.css is served at /style.css.",f:'// <link rel="stylesheet" href="/style.css">'},
+ {t:"REST",p:"After deleting course 1, the next new course gets an id that already exists.",c:['app.post("/api/courses", (req, res) => {','  const course = { id: courses.length + 1, ...req.body };','  courses.push(course);','  res.status(201).json(course);','});'],a:[1],e:"courses.length shrinks after a delete, so length + 1 can repeat an existing id. Keep a separate counter.",f:'let nextId = 3;   // declared once, above the routes\nconst course = { id: nextId++, ...req.body };'},
+ {t:"MVC",p:"This service breaks the MVC rules. Click a line that belongs in the controller.",c:['// services/book.service.js','exports.getById = (id, res) => {','  const book = books.find(b => b.id === id);','  if (!book) return res.status(404).json({ error: "Not found" });','  return book;','};'],a:[1,3],e:"Services never touch res. Return the data (or undefined) and let the controller choose the status code.",f:'exports.getById = (id) => books.find(b => b.id === id);\n// controller: if (!book) return res.status(404).json({ error: "Not found" });'},
+ {t:"Prisma migrate",p:"The User table already has rows. After adding age, migrate dev fails.",lang:"prisma",c:['model User {','  id    Int    @id @default(autoincrement())','  email String @unique','  age   Int','}'],a:[3],e:"Existing rows have no value for a new required column. Make it optional or give it a default.",f:'  age   Int?    // or: age Int @default(0)'},
+ {t:"Prisma model",p:"prisma validate reports an error here (assume User already has posts Post[]).",lang:"prisma",c:['model Post {','  id     Int  @id @default(autoincrement())','  author User @relation(fields: [authorId], references: [id])','}'],a:[2,3],e:"The relation points at authorId, but that field is never declared. The foreign key column must exist in the model.",f:'  author   User @relation(fields: [authorId], references: [id])\n  authorId Int'}
+];
+
+const NEW_BLANKS = [
+ {t:"Events",p:"Wait for an event as if it were a promise.",c:'const { EventEmitter, {{once}} } = require("node:events");\nconst [status] = {{await}} once(db, "{{ready}}");'},
+ {t:"fs",p:"Promise version: read a file, then append a line, in order.",c:'const fsp = require("{{fs/promises|node:fs/promises}}");\nconst text = {{await}} fsp.readFile(file, "utf8");\nawait fsp.{{appendFile}}(file, "more\\n");'},
+ {t:"http",p:"Split the request URL into a path and a query value.",c:'const url = new {{URL}}(req.url, `http://${req.headers.host}`);\nconst page = url.{{searchParams}}.get("page");\nif (url.{{pathname}} === "/api/users") { /* … */ }'}
+];
+const NEW_BUGS = [
+ {t:"http",p:"POST /notes crashes the server: Cannot set headers after they are sent.",c:['if (req.method === "POST" && req.url === "/notes") {','  let body = "";','  req.on("data", (c) => (body += c));','  req.on("end", () => { res.writeHead(201); res.end(body); });','}','res.writeHead(404); res.end("Not found");'],a:[4,5],e:"After setting up the POST listeners, the code falls through and sends a 404 straight away. When \"end\" fires, it tries to respond a second time. Return after the POST branch.",f:'  req.on("end", () => { res.writeHead(201); res.end(body); });\n  return;   // stop here: the response is sent later, on "end"\n}'},
+ {t:"Events",p:"After a few hundred requests: MaxListenersExceededWarning, and memory keeps growing.",c:['server.on("request", (req, res) => {','  bus.on("tick", () => console.log("tick"));','  res.end("ok");','});'],a:[1],e:"A new listener is added on every request and never removed. Register listeners once, outside the handler.",f:'bus.on("tick", () => console.log("tick"));   // once, at start-up\nserver.on("request", (req, res) => res.end("ok"));'},
+ {t:"readline",p:"The program prints the answer before the user has typed anything: undefined.",c:['let answer;','rl.question("City? ", (a) => { answer = a; rl.close(); });','console.log(`You live in ${answer}`);'],a:[2],e:"rl.question doesn't wait. The callback runs later, after Enter, so the answer only exists inside it.",f:'rl.question("City? ", (a) => {\n  console.log(`You live in ${a}`);\n  rl.close();\n});'}
+];
+const NEW_PARSONS = [
+ { t: "fs", p: "Order a JSON-file mini database: load, change, save.", c: [
+    'const DB = path.join(__dirname, "todos.json");',
+    'const todos = fs.existsSync(DB) ? JSON.parse(fs.readFileSync(DB, "utf8")) : [];',
+    'todos.push({ id: Date.now(), text: "Revise fs" });',
+    'fs.writeFileSync(DB, JSON.stringify(todos, null, 2));' ],
+    why: "You need the path before you can read, the array before you can push, and you save only after changing it." },
+ { t: "http", p: "Order a minimal http server.", c: [
+    'const http = require("http");',
+    'const server = http.createServer((req, res) => {',
+    '  res.writeHead(200, { "Content-Type": "text/plain" });',
+    '  res.end("Hello");',
+    '});',
+    'server.listen(3000);' ],
+    why: "Headers are written before the body, res.end finishes the response, and listen starts accepting requests once the server exists." }
+];
+/* ---------------- drill builders ---------------- */
+const norm = s => String(s).replace(/[`'’‘]/g, '"').replace(/;+\s*$/, "").replace(/\s+/g, " ").replace(/\s*([()[\]{},.:=])\s*/g, "$1").trim();
+function makeBlank(d, i, onResult){
+  const el = document.createElement("div"); el.className = "drill";
+  const answers = []; let code = "";
+  d.c.split(/\{\{(.*?)\}\}/).forEach((part, k) => {
+    if(k % 2 === 0){ code += esc(part); return; }
+    const alts = part.split("|"); answers.push(alts);
+    code += `<input class="blank" type="text" spellcheck="false" autocapitalize="off" autocorrect="off" autocomplete="off" aria-label="Blank ${answers.length}" style="width:${Math.max(alts[0].length, 4) + 2}ch">`;
+  });
+  el.innerHTML = `<div class="dh"><span>Drill ${i + 1} · ${esc(d.t)}</span></div><div class="dp">${esc(d.p)}</div><pre><code>${code}</code></pre><div class="row"><button class="btn primary" type="button" data-a="check">Check</button><button class="btn" type="button" data-a="show">Show answers</button><button class="btn" type="button" data-a="again">Try again</button></div><div class="dfb" aria-live="polite"></div>`;
+  const inputs = $$("input.blank", el), fb = $(".dfb", el);
+  let scored = false;
+  const score = ok => { if(!scored){ scored = true; onResult(ok); } };
+  const check = () => {
+    if(!scored && inputs.some(x => !x.value.trim())){ fb.innerHTML = `Fill every blank first, or press <b>Show answers</b>.`; return; }
+    let wrong = 0;
+    inputs.forEach((inp, k) => {
+      const ok = answers[k].some(a => norm(a) === norm(inp.value));
+      inp.classList.toggle("ok", ok); inp.classList.toggle("no", !ok);
+      if(!ok) wrong++;
+    });
+    fb.innerHTML = wrong ? `<span class="bad">✗ ${wrong} blank${wrong === 1 ? "" : "s"} wrong.</span> Fix the red ones, or press Show answers.` : `<span class="good">✓ All correct.</span>`;
+    score(wrong === 0);
+  };
+  el.addEventListener("keydown", e => { if(e.key === "Enter" && e.target.matches("input.blank")){ e.preventDefault(); check(); } });
+  $('[data-a="check"]', el).addEventListener("click", check);
+  $('[data-a="show"]', el).addEventListener("click", () => {
+    score(false);
+    inputs.forEach((inp, k) => { if(!answers[k].some(a => norm(a) === norm(inp.value))){ inp.value = answers[k][0]; inp.classList.remove("ok"); inp.classList.add("no"); } else { inp.classList.add("ok"); } });
+    fb.innerHTML = `Red blanks now show the answer. Press <b>Try again</b> to type it from memory.`;
+  });
+  $('[data-a="again"]', el).addEventListener("click", () => {
+    inputs.forEach(inp => { inp.value = ""; inp.classList.remove("ok", "no"); });
+    fb.innerHTML = scored ? `<span style="color:var(--muted)">Practice round: this won't change your score.</span>` : "";
+    inputs[0].focus();
+  });
+  return el;
+}
+function makeBug(b, i, onResult){
+  const el = document.createElement("div"); el.className = "drill";
+  el.innerHTML = `<div class="dh"><span>Bug ${i + 1} · ${esc(b.t)}</span></div><div class="dp">Symptom: ${esc(b.p)}</div><div class="bugbox">${b.c.map((l, k) => `<button type="button" class="bugline" data-k="${k}" aria-label="Line ${k + 1}: ${esc(l)}"><span class="ln">${k + 1}</span>${hl(l, b.lang || "js")}</button>`).join("")}</div><div class="dfb" aria-live="polite"></div><div class="row"><button class="btn" type="button" data-a="show">Show the bug</button></div>`;
+  const fb = $(".dfb", el), lines = $$(".bugline", el);
+  let scored = false, solved = false;
+  const reveal = () => {
+    solved = true;
+    b.a.forEach(k => lines[k].classList.add("hit"));
+    lines.forEach(x => x.disabled = true);
+    fb.innerHTML = `<b>Why:</b> ${esc(b.e)}<pre><code>${hl(b.f, b.lang || "js")}</code></pre>`;
+    $('[data-a="show"]', el).disabled = true;
+  };
+  lines.forEach(btn => btn.addEventListener("click", () => {
+    if(solved) return;
+    const k = +btn.dataset.k;
+    if(b.a.includes(k)){
+      if(!scored){ scored = true; onResult(true); }
+      reveal(); fb.insertAdjacentHTML("afterbegin", `<span class="good">✓ Found it.</span> `);
+    } else {
+      if(!scored){ scored = true; onResult(false); }
+      btn.classList.add("miss");
+      fb.innerHTML = `<span class="bad">✗ Line ${k + 1} is fine.</span> Look again, or press Show the bug.`;
+    }
+  }));
+  $('[data-a="show"]', el).addEventListener("click", () => { if(!scored){ scored = true; onResult(false); } reveal(); });
+  return el;
+}
+
+/* ---------------- Put the lines in order (Parsons) ---------------- */
+const ALL_PARSONS = [
+  { t: "Express app skeleton", p: "Put the lines of this Express app in the right order.", c: [
+    'const express = require("express");',
+    'const app = express();',
+    'app.use(express.json());',
+    'app.get("/api/books", getAll);',
+    'app.use((req, res) => res.status(404).json({ error: "Not found" }));',
+    'app.use((err, req, res, next) => res.status(500).json({ error: err.message }));',
+    'app.listen(3000);' ],
+    why: "The JSON parser must run before the routes, and the 404 handler and then the error handler come after all routes so they only catch what nothing else handled." },
+  { t: "DELETE handler", p: "Order the lines of a DELETE handler that follows the recipe: find, 404 if missing, remove, reply.", c: [
+    'app.delete("/api/books/:id", (req, res) => {',
+    '  const id = Number(req.params.id);',
+    '  const i = books.findIndex(b => b.id === id);',
+    '  if (i === -1) return res.status(404).json({ error: "Not found" });',
+    '  books.splice(i, 1);',
+    '  res.sendStatus(204);',
+    '});' ],
+    why: "You must convert the id and find the index before you can check for a 404, and you only splice and send 204 once you know the book exists." },
+  { t: "readline", p: "Order the lines of a program that asks for a name and greets the user.", c: [
+    'const readline = require("readline");',
+    'const rl = readline.createInterface({ input: process.stdin, output: process.stdout });',
+    'rl.question("Name? ", (name) => {',
+    '  console.log(`Hi ${name}`);',
+    '  rl.close();',
+    '});' ],
+    why: "The interface has to exist before you can ask a question, and rl.close() goes last inside the callback so the program can exit once the answer is handled." },
+  { t: "Events", p: "Order the lines so the listener fires.", c: [
+    'const EventEmitter = require("events");',
+    'const shop = new EventEmitter();',
+    'shop.on("order", (item) => console.log(item));',
+    'shop.emit("order", "pizza");' ],
+    why: "Register on() before emit(): an event emitted with no listener attached yet is simply lost." },
+  { t: "Prisma setup", p: "Order the terminal steps to set up Prisma in a project.", c: [
+    'npm install prisma --save-dev',
+    'npm install @prisma/client',
+    'npx prisma init',
+    '# edit prisma/schema.prisma and add your models',
+    'npx prisma migrate dev --name init' ],
+    why: "Prisma must be installed before init can run, and you define your models in the schema before migrate can turn them into a database." }
+];
+function makeParsons(pz, i, onResult){
+  const el = document.createElement("div"); el.className = "drill";
+  const n = pz.c.length, pre = "white-space:pre";
+  el.innerHTML = `<div class="dh"><span>Puzzle ${i + 1} · ${esc(pz.t)}</span></div><div class="dp">${esc(pz.p)}</div><div class="qscore">Lines to place</div><div class="bugbox" data-r="pool"></div><div class="qscore">Your answer</div><div class="bugbox" data-r="ans"></div><div class="dfb" aria-live="polite"></div><div class="row"><button class="btn primary" type="button" data-a="check">Check</button><button class="btn" type="button" data-a="show">Show answer</button><button class="btn" type="button" data-a="reset">Reset</button></div>`;
+  const poolEl = $('[data-r="pool"]', el), ansEl = $('[data-r="ans"]', el), fb = $(".dfb", el);
+  let pool, ans, scored = false, locked = false;
+  const shuffle = () => {
+    let a, tries = 0;
+    do {
+      a = pz.c.map((_, k) => k);
+      for(let k = a.length - 1; k > 0; k--){ const j = Math.floor(Math.random() * (k + 1)); [a[k], a[j]] = [a[j], a[k]]; }
+      tries++;
+    } while(tries < 20 && a.every((k, pos) => pz.c[k] === pz.c[pos]));
+    return a;
+  };
+  const btn = (k, pos, cls) => `<button type="button" class="bugline${cls ? " " + cls : ""}" data-k="${k}" style="${pre}" aria-label="${pos != null ? "Placed line " + (pos + 1) + ": " : "Add line: "}${esc(pz.c[k].trim())}"${locked ? " disabled" : ""}>${pos != null ? `<span class="ln">${pos + 1}</span>` : ""}${hl(pz.c[k], "js")}</button>`;
+  const paint = marks => {
+    poolEl.innerHTML = pool.length ? pool.map(k => btn(k, null)).join("") : `<span class="qscore" style="padding:0 12px">All lines placed.</span>`;
+    ansEl.innerHTML = ans.length ? ans.map((k, pos) => btn(k, pos, marks ? marks[pos] : "")).join("") : `<span class="qscore" style="padding:0 12px">Tap lines above to build your answer.</span>`;
+  };
+  const reset = () => { pool = shuffle(); ans = []; locked = false; fb.innerHTML = ""; paint(); };
+  poolEl.addEventListener("click", e => {
+    const b = e.target.closest(".bugline"); if(!b || locked) return;
+    const k = +b.dataset.k; pool.splice(pool.indexOf(k), 1); ans.push(k); fb.innerHTML = ""; paint();
+  });
+  ansEl.addEventListener("click", e => {
+    const b = e.target.closest(".bugline"); if(!b || locked) return;
+    const pos = $$(".bugline", ansEl).indexOf(b); if(pos < 0) return;
+    pool.push(ans.splice(pos, 1)[0]); fb.innerHTML = ""; paint();
+  });
+  $('[data-a="check"]', el).addEventListener("click", () => {
+    if(locked) return;
+    if(ans.length < n){ fb.innerHTML = `<span class="bad">Place all ${n} lines first</span> (${ans.length} placed).`; return; }
+    const marks = ans.map((k, pos) => pz.c[k] === pz.c[pos] ? "hit" : "miss");
+    const ok = marks.every(m => m === "hit");
+    if(!scored){ scored = true; onResult(ok); }
+    paint(marks);
+    fb.innerHTML = `${ok ? '<span class="good">✓ Correct order.</span>' : '<span class="bad">✗ Not quite: red lines are in the wrong place.</span>'} <b>Why:</b> ${esc(pz.why)}`;
+  });
+  $('[data-a="show"]', el).addEventListener("click", () => {
+    if(!scored){ scored = true; onResult(false); }
+    pool = []; ans = pz.c.map((_, k) => k); locked = true;
+    paint(ans.map(() => "hit"));
+    fb.innerHTML = `Correct order shown. <b>Why:</b> ${esc(pz.why)}`;
+  });
+  $('[data-a="reset"]', el).addEventListener("click", reset);
+  reset();
+  return el;
+}
+
+/* ---------------- practice: filter + render ---------------- */
+function track(){}  /* the mistakes deck is not part of the video subsets */
+const BLANKS = ALL_BLANKS.filter(d => TOPICS.includes(d.t)).concat(NEW_BLANKS);
+const BUGS = ALL_BUGS.filter(d => TOPICS.includes(d.t)).concat(NEW_BUGS);
+const PARSONS = ALL_PARSONS.filter(d => TOPICS.includes(d.t)).concat(NEW_PARSONS);
+function renderBlanks(){
+  const list = $("#blankList"); if(!list) return;
+  let done = 0, right = 0; list.innerHTML = "";
+  const paint = () => $("#blankScore").textContent = done ? `${right} of ${done} drills correct first time · ${BLANKS.length - done} left` : `${BLANKS.length} drills`;
+  BLANKS.forEach((d, i) => list.appendChild(makeBlank(d, i, ok => { done++; if(ok) right++; paint(); })));
+  paint();
+}
+function renderBugs(){
+  const list = $("#bugList"); if(!list) return;
+  let done = 0, right = 0; list.innerHTML = "";
+  const paint = () => $("#bugScore").textContent = done ? `${right} of ${done} found on the first click · ${BUGS.length - done} left` : `${BUGS.length} bugs`;
+  BUGS.forEach((b, i) => list.appendChild(makeBug(b, i, ok => { done++; if(ok) right++; paint(); })));
+  paint();
+}
+function renderParsons(){
+  const list = $("#parList"); if(!list) return;
+  let done = 0, right = 0; list.innerHTML = "";
+  const paint = () => $("#parScore").textContent = done ? `${right} of ${PARSONS.length} right first time · ${PARSONS.length - done} left` : `${PARSONS.length} puzzles`;
+  PARSONS.forEach((pz, i) => list.appendChild(makeParsons(pz, i, ok => { done++; if(ok) right++; paint(); })));
+  paint();
+}
+renderBlanks(); renderBugs(); renderParsons();
+if($("#blankReset")) $("#blankReset").addEventListener("click", renderBlanks);
+if($("#bugReset")) $("#bugReset").addEventListener("click", renderBugs);
+if($("#parReset")) $("#parReset").addEventListener("click", renderParsons);
+
+/* ---------------- quizzes ---------------- */
+function questionEl(q, onAnswer){
+  const d = document.createElement("div"); d.className = "q";
+  d.innerHTML = `<div class="qt">${esc(q.q)}</div>${q.c ? `<pre><code data-lang="js">${esc(q.c)}</code></pre>` : ""}<div class="opts">${q.o.map((o,i)=>`<button class="opt" type="button" data-i="${i}"><span class="k">${"ABCD"[i]}</span><span>${esc(o)}</span></button>`).join("")}</div><div class="explain"><b>Why:</b> ${esc(q.e)}</div>`;
+  const code = d.querySelector("code"); if(code) hlEl(code);
+  d.querySelectorAll(".opt").forEach(b => b.addEventListener("click", () => {
+    if(d.classList.contains("answered")) return;
+    const i = +b.dataset.i; d.classList.add("answered");
+    d.querySelectorAll(".opt").forEach(x => { x.disabled = true; if(+x.dataset.i === q.a) x.classList.add("right"); });
+    if(i !== q.a) b.classList.add("wrong");
+    onAnswer(i === q.a);
+  }));
+  return d;
+}
+$$(".quiz[data-quiz]").forEach(box => {
+  const list = QZ[box.dataset.quiz] || [];
+  let right = 0, answered = 0;
+  box.innerHTML = `<div class="qhead"><strong>Check yourself</strong><span class="qscore" aria-live="polite">0 / ${list.length} answered</span></div>`;
+  const score = box.querySelector(".qscore");
+  list.forEach((q, qi) => box.appendChild(questionEl(q, ok => {
+    track(`q:${box.dataset.quiz}:${qi}`, ok);
+    answered++; if(ok) right++;
+    score.textContent = answered < list.length ? `${right} correct of ${answered} answered` : `Final: ${right} / ${list.length}${right === list.length ? " — perfect" : " — reread the explanations above"}`;
+  })));
+  const rb = document.createElement("button"); rb.className = "btn"; rb.type = "button"; rb.textContent = "Reset quiz"; rb.style.marginTop = "8px";
+  rb.addEventListener("click", () => {
+    right = 0; answered = 0; score.textContent = `0 / ${list.length} answered`;
+    box.querySelectorAll(".q").forEach(q => { q.classList.remove("answered"); q.querySelectorAll(".opt").forEach(o => { o.disabled = false; o.classList.remove("right","wrong"); }); });
+  });
+  box.appendChild(rb);
+});
+
+/* ================= LABS ================= */
+const con = (el, html) => { el.innerHTML = html; };
+/* 7. events */
+(function(){
+  let ls = [], n = 0;
+  const out = $("#evOut");
+  const log = h => { out.innerHTML += h + "\n"; out.scrollTop = out.scrollHeight; };
+  const paint = () => { con($("#evList"), ls.length ? ls.map(l => `<span class="chip">#${l.id} ${l.once ? "once" : "on"}</span>`).join("") : `<span class="how" style="margin:0">No listeners registered for "login".</span>`); };
+  $("#evOn").addEventListener("click", () => { ls.push({id: ++n, once: false}); log(`<span class="dim">emitter.on("login", listener${n})</span>`); paint(); });
+  $("#evOnce").addEventListener("click", () => { ls.push({id: ++n, once: true}); log(`<span class="dim">emitter.once("login", listener${n})</span>`); paint(); });
+  $("#evOff").addEventListener("click", () => { const l = ls.pop(); log(l ? `<span class="dim">emitter.off("login", listener${l.id})</span>` : `<span class="dim">nothing to remove</span>`); paint(); });
+  $("#evEmit").addEventListener("click", () => {
+    log(`<span class="ylw">emitter.emit("login", "Asha")</span>`);
+    if(!ls.length){ log(`<span class="err">  → no listeners. Returns false. The event is lost.</span>`); return; }
+    const snapshot = ls.slice();
+    snapshot.forEach(l => log(`<span class="ok">  listener${l.id} ran: Welcome, Asha${l.once ? " (once: now removed)" : ""}</span>`));
+    ls = ls.filter(l => !l.once);
+    log(`<span class="dim">  → returns true. Every listener finished before the next line of code.</span>`);
+    paint();
+  });
+  $("#evReset").addEventListener("click", () => { ls = []; n = 0; out.innerHTML = ""; paint(); });
+  paint();
+})();
+/* 8. readline sim */
+(function(){
+  const lines = [
+    'const rl = readline.createInterface({ input: process.stdin, output: process.stdout });',
+    'rl.question("What\'s your name? ", (name) => {',
+    '  rl.question("Favourite language? ", (lang) => {',
+    '    console.log(`${name} likes ${lang}!`);',
+    '    rl.close();',
+    '  });',
+    '});',
+    'rl.on("close", () => console.log("Goodbye 👋"));'
+  ];
+  let stage = 0, name = "";
+  const out = $("#rlOut"), inp = $("#rlIn");
+  function code(active){
+    $("#rlCode").innerHTML = lines.map((l, i) => `<span style="display:block;${active.includes(i) ? "background:var(--hl);color:var(--ink);" : ""}">${esc(l)}</span>`).join("");
+  }
+  function reset(){ stage = 0; name = ""; out.innerHTML = `What's your name? <span class="dim">█</span>`; code([1]); inp.disabled = false; inp.value = ""; }
+  function send(){
+    const v = inp.value; inp.value = "";
+    if(stage === 0){ name = v; out.innerHTML = `What's your name? ${esc(v)}\nFavourite language? <span class="dim">█</span>`; code([2]); stage = 1; }
+    else if(stage === 1){
+      out.innerHTML += ""; out.innerHTML = out.innerHTML.replace(/<span class="dim">█<\/span>$/, esc(v));
+      out.innerHTML += `\n<span class="ok">${esc(name)} likes ${esc(v)}!</span>\n<span class="ylw">Goodbye 👋</span>\n<span class="dim">(rl.close() emitted "close"; the program exits)</span>`;
+      code([3,4,7]); stage = 2; inp.disabled = true;
+    }
+  }
+  $("#rlSend").addEventListener("click", send);
+  inp.addEventListener("keydown", e => { if(e.key === "Enter") send(); });
+  $("#rlReset").addEventListener("click", reset);
+  reset();
+})();
+/* 9. fs virtual file */
+(function(){
+  let file = null;
+  const P = "/home/me/project/notes.txt";
+  const out = $("#fsOut");
+  const txt = () => $("#fsText").value.replace(/\\n/g, "\n");
+  const lit = s => JSON.stringify(s);
+  const disk = () => con($("#fsDisk"), file === null ? `<span class="dim">(file does not exist)</span>` : (file === "" ? `<span class="dim">(empty file)</span>` : esc(file)));
+  const show = (code, msg) => { const c = $("#fsCode"); c.textContent = code; hlEl(c); con(out, msg); disk(); };
+  $("#fsRead").addEventListener("click", () => {
+    if(file === null) show('fs.readFile(file, "utf8", (err, data) => {\n  if (err) return console.error(err.message);\n  console.log(data);\n});', `<span class="err">Error: ENOENT: no such file or directory, open '${P}'</span>\n<span class="dim">// readFile never creates files</span>`);
+    else show('fs.readFile(file, "utf8", (err, data) => {\n  if (err) return console.error(err.message);\n  console.log(data);\n});', `<span class="ok">${esc(file)}</span>`);
+  });
+  $("#fsWrite").addEventListener("click", () => {
+    const had = file !== null; file = txt();
+    show(`fs.writeFile(file, ${lit(txt())}, (err) => {\n  if (err) return console.error(err);\n  console.log("Saved");\n});`, `<span class="ok">Saved</span>\n<span class="dim">// ${had ? "old contents were REPLACED" : "file did not exist, so it was CREATED"}</span>`);
+  });
+  $("#fsAppend").addEventListener("click", () => {
+    const had = file !== null; file = (file || "") + txt();
+    show(`fs.appendFile(file, ${lit(txt())}, (err) => {\n  if (err) return console.error(err);\n  console.log("Appended");\n});`, `<span class="ok">Appended</span>\n<span class="dim">// ${had ? "added to the END, old text kept. Tip: type \\n in the box for a new line" : "file did not exist, so it was CREATED"}</span>`);
+  });
+  $("#fsDel").addEventListener("click", () => {
+    if(file === null) show('fs.unlink(file, (err) => { if (err) console.error(err.message); });', `<span class="err">Error: ENOENT: no such file or directory, unlink '${P}'</span>`);
+    else { file = null; show('fs.unlink(file, (err) => { if (err) console.error(err.message); });', `<span class="ok">Deleted</span>`); }
+  });
+  $("#fsReset").addEventListener("click", () => { file = null; $("#fsCode").textContent = "// click a button"; hlEl($("#fsCode")); con(out, ""); disk(); });
+  disk();
+})();
+/* 10. http sim */
+(function(){
+  function go(m, u){
+    let req = `${m} ${u} HTTP/1.1\nHost: localhost:3000\nUser-Agent: Mozilla/5.0`;
+    if(m === "POST") req += `\nContent-Type: application/json\n\n{"name":"Ravi"}`;
+    let st, ct, body, why;
+    if(m === "GET" && u === "/"){ st = "200 OK"; ct = "text/html"; body = "<h1>Home</h1>"; why = 'Matched the first branch: req.method === "GET" && req.url === "/".'; }
+    else if(m === "GET" && u === "/api/users"){ st = "200 OK"; ct = "application/json"; body = '[{"id":1,"name":"Asha"}]'; why = "Matched the second branch. The array was JSON.stringify'd because res.end only takes strings."; }
+    else {
+      st = "404 Not Found"; ct = "text/plain"; body = "Not found";
+      if(u.startsWith("/api/users?")) why = `Fell to the else branch: req.url is "${u}", including the query string, so it isn't === "/api/users". Strip the query first: req.url.split("?")[0].`;
+      else if(u === "/api/users" || u === "/") why = `Fell to the else branch: the path matched, but the method was ${m}, and our if-checks require GET.`;
+      else why = "No branch matched this method + URL, so the else branch sent 404.";
+    }
+    con($("#httpReq"), esc(req));
+    con($("#httpRes"), `<span class="${st.startsWith("2") ? "ok" : "err"}">HTTP/1.1 ${st}</span>\nContent-Type: ${ct}\n\n${esc(body)}`);
+    $("#httpWhy").textContent = why;
+  }
+  $("#httpGo").addEventListener("click", () => go($("#httpM").value, $("#httpU").value.trim() || "/"));
+  $$("#httpLab [data-hp]").forEach(b => b.addEventListener("click", () => { const [m, u] = b.dataset.hp.split(" "); $("#httpM").value = m; $("#httpU").value = u; go(m, u); }));
+  go("GET", "/api/users");
+})();
+
+/* new: notes API simulator */
+(function(){
+  if(!$("#napiLab")) return;
+  let file = null, log = [], running = true, clock = Date.now();
+  const pretty = v => JSON.stringify(v, null, 2);
+  function paintDisk(){
+    con($("#napiFile"), file === null ? `<span class="dim">(file does not exist yet)</span>` : esc(pretty(file)));
+    con($("#napiLog"), log.length ? esc(log.join("\n")) : `<span class="dim">(empty)</span>`);
+  }
+  function show(req, status, body, note){
+    con($("#napiReq"), esc(req));
+    const ok = status < 300;
+    con($("#napiRes"), `<span class="${ok ? "ok" : "err"}">HTTP/1.1 ${status} ${({200:"OK",201:"Created",400:"Bad Request",404:"Not Found"})[status]}</span>\nContent-Type: application/json\n\n${esc(typeof body === "string" ? body : JSON.stringify(body))}${note ? `\n\n<span class="dim">// ${esc(note)}</span>` : ""}`);
+    paintDisk();
+  }
+  const reqText = (m, u, body) => `${m} ${u} HTTP/1.1\nHost: localhost:3000${body !== undefined ? `\nContent-Type: application/json\n\n${body}` : ""}`;
+  $("#napiPost").addEventListener("click", () => {
+    const text = $("#napiText").value;
+    const body = JSON.stringify({ text });
+    if(!text.trim()) return show(reqText("POST", "/notes", body), 400, { error: "text is required" }, "input?.text is empty, so the route returns early with 400. Nothing is saved.");
+    const notes = file === null ? [] : file.slice();
+    clock += 61000;
+    const note = { id: clock, text };
+    notes.push(note); file = notes;
+    log.push(`${new Date(clock).toISOString()} created #${note.id}`);
+    show(reqText("POST", "/notes", body), 201, note, "saveNotes() rewrote notes.json, then bus.emit(\"note:created\") let the listener append to notes.log.");
+  });
+  $("#napiBad").addEventListener("click", () => show(reqText("POST", "/notes", JSON.stringify({ text: "" })), 400, { error: "text is required" }, "Validation failed before anything touched the disk."));
+  $("#napiGet").addEventListener("click", () => show(reqText("GET", "/notes"), 200, file === null ? [] : file, file === null ? "notes.json doesn't exist yet: loadNotes() caught ENOENT and returned []." : (running ? "loadNotes() read and parsed notes.json." : "")));
+  $("#napi404").addEventListener("click", () => show(reqText("GET", "/nope"), 404, { error: "Not found" }, "No branch matched, so the last line sent 404."));
+  $("#napiRestart").addEventListener("click", () => {
+    con($("#napiReq"), `<span class="dim">^C  (SIGINT → server.close())\n$ node notes-api.js</span>`);
+    con($("#napiRes"), `<span class="ok">Notes API on http://localhost:3000</span>\n<span class="dim">// Memory was wiped, but notes.json is on disk. Press GET /notes.</span>`);
+    paintDisk();
+  });
+  $("#napiReset").addEventListener("click", () => { file = null; log = []; con($("#napiReq"), ""); con($("#napiRes"), ""); paintDisk(); });
+  paintDisk();
+  con($("#napiReq"), `<span class="dim">Press a button to send a request.</span>`);
+})();
+
+
+})();
+</script>
+</body>
+</html>

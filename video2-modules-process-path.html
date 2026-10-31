@@ -1,0 +1,1473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Video 2: Node.js modules, process and path</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EEF1F6; --surface:#FFFFFF; --surface-2:#F6F8FB; --ink:#17202D; --muted:#566174; --line:#D6DCE6;
+  --l-found:#2E5BDA; --l-node:#2B8A45; --l-express:#C2410C; --l-arch:#7C3AED; --l-prisma:#0E7490; --l-exam:#B91C4B;
+  --good:#1F8A47; --good-bg:#E5F5EB; --bad:#C0352F; --bad-bg:#FBE9E8; --warn:#9A6400; --warn-bg:#FFF3D6;
+  --idea-bg:#E8EEFD; --anal-bg:#F2EBFD; --code-bg:#1A2030; --code-ink:#E4E9F2; --code-c:#7F8BA3; --code-s:#9BD58A; --code-k:#F2A766; --code-n:#E7C66B; --code-f:#8EC5FF;
+  --hl:#FFE58A; --on-lc:#FFFFFF;
+  color-scheme: light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0F131A; --surface:#171C25; --surface-2:#1D2330; --ink:#E6EAF1; --muted:#9AA4B5; --line:#2A3241;
+    --l-found:#7B9BFF; --l-node:#4FC572; --l-express:#FB8A4C; --l-arch:#B38BFF; --l-prisma:#3CC3DB; --l-exam:#FF6B95;
+    --good:#5BD38A; --good-bg:#15301F; --bad:#FF7A72; --bad-bg:#3A1A19; --warn:#F5C04E; --warn-bg:#3A2D0E;
+    --idea-bg:#1A2444; --anal-bg:#26193F; --code-bg:#0B0E15; --hl:#5A4A0B; --on-lc:#0F131A;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0F131A; --surface:#171C25; --surface-2:#1D2330; --ink:#E6EAF1; --muted:#9AA4B5; --line:#2A3241;
+  --l-found:#7B9BFF; --l-node:#4FC572; --l-express:#FB8A4C; --l-arch:#B38BFF; --l-prisma:#3CC3DB; --l-exam:#FF6B95;
+  --good:#5BD38A; --good-bg:#15301F; --bad:#FF7A72; --bad-bg:#3A1A19; --warn:#F5C04E; --warn-bg:#3A2D0E;
+  --idea-bg:#1A2444; --anal-bg:#26193F; --code-bg:#0B0E15; --hl:#5A4A0B; --on-lc:#0F131A;
+  color-scheme: dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:calc(env(safe-area-inset-top,0px) + 16px); scroll-behavior:smooth}
+@media (prefers-reduced-motion: reduce){html{scroll-behavior:auto} *{animation:none!important;transition:none!important}}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:17px;line-height:1.6;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:"Bricolage Grotesque","Atkinson Hyperlegible",system-ui,sans-serif;line-height:1.15;margin:0}
+code,pre,kbd{font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+a{color:var(--l-found)}
+:focus-visible{outline:3px solid var(--l-found);outline-offset:2px;border-radius:4px}
+img,svg{max-width:100%}
+
+/* ---------- layout ---------- */
+.shell{display:grid;grid-template-columns:290px minmax(0,1fr);min-height:100%}
+.rail{position:sticky;top:env(safe-area-inset-top,0px);height:100vh;height:100dvh;overflow-y:auto;background:var(--surface);border-right:1px solid var(--line);padding:22px 18px 40px}
+.main{padding:28px clamp(16px,4vw,56px) 120px;min-width:0}
+.col{max-width:780px;margin:0 auto}
+.rail-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:14px}
+.rail-head strong{font-family:"Bricolage Grotesque",sans-serif;font-size:18px}
+.theme-btn{border:1px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:8px;padding:5px 9px;font:inherit;font-size:14px;cursor:pointer}
+.progress{font-size:14px;color:var(--muted);margin-bottom:6px}
+.pbar{height:8px;border-radius:99px;background:var(--surface-2);border:1px solid var(--line);overflow:hidden;margin-bottom:18px}
+.pbar i{display:block;height:100%;width:0;background:var(--l-node);transition:width .4s}
+
+/* transit map nav */
+.line-group{position:relative;margin:0 0 6px}
+.line-group h4{font-size:13px;font-weight:700;color:var(--lc);margin:12px 0 4px 2px;letter-spacing:.01em}
+.stations{list-style:none;margin:0;padding:0;position:relative}
+.stations::before{content:"";position:absolute;left:11px;top:10px;bottom:10px;width:5px;border-radius:3px;background:var(--lc);opacity:.85}
+.stations a{display:flex;align-items:center;gap:10px;padding:5px 6px;text-decoration:none;color:var(--ink);font-size:14.5px;border-radius:8px;position:relative}
+.stations a:hover{background:var(--surface-2)}
+.stations a.active{background:var(--surface-2);font-weight:700}
+.dot{flex:0 0 auto;width:17px;height:17px;border-radius:50%;background:var(--surface);border:4px solid var(--lc);position:relative;z-index:1}
+.stations a.done .dot{background:var(--lc)}
+.stations a.done .dot::after{content:"";position:absolute;left:3px;top:0px;width:4px;height:7px;border:solid var(--surface);border-width:0 2px 2px 0;transform:rotate(45deg)}
+.num{color:var(--muted);font-variant-numeric:tabular-nums;font-size:12.5px;min-width:18px}
+
+.menu-btn{display:none}
+@media (max-width:900px){
+  .shell{grid-template-columns:1fr}
+  .rail{position:fixed;inset:0 auto 0 0;width:min(86vw,320px);z-index:50;transform:translateX(-105%);transition:transform .25s;padding-top:calc(22px + env(safe-area-inset-top,0px));box-shadow:0 0 0 100vmax transparent}
+  .rail.open{transform:none;box-shadow:0 0 0 100vmax rgba(0,0,0,.4)}
+  .menu-btn{display:inline-flex;position:fixed;right:14px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:40;align-items:center;gap:8px;border:0;border-radius:99px;padding:12px 18px;background:var(--ink);color:var(--bg);font:inherit;font-weight:700;box-shadow:0 6px 20px rgba(0,0,0,.25);cursor:pointer}
+  .main{padding-top:18px}
+}
+
+/* ---------- hero ---------- */
+.hero{padding:26px 0 8px}
+.hero h1{font-size:clamp(34px,6vw,58px);font-weight:800;letter-spacing:-.02em;margin-bottom:14px}
+.hero p.lede{font-size:19px;color:var(--muted);max-width:62ch;margin:0 0 20px}
+.hero-map{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px;overflow-x:auto}
+.hero-map svg{display:block;min-width:640px}
+
+/* ---------- topic sections ---------- */
+.topic{padding:56px 0 8px;border-top:1px solid var(--line);margin-top:48px}
+.topic-head{display:flex;gap:16px;align-items:flex-start;margin-bottom:18px}
+.badge{flex:0 0 auto;width:52px;height:52px;border-radius:50%;border:6px solid var(--lc);display:grid;place-items:center;font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:18px;background:var(--surface)}
+.topic-head .meta{font-size:14px;color:var(--lc);font-weight:700;margin-bottom:2px}
+.topic h2{font-size:clamp(26px,4vw,36px);font-weight:800;letter-spacing:-.01em}
+.topic h3{font-size:22px;margin:34px 0 10px;font-weight:700}
+.topic h4{font-size:17px;margin:20px 0 6px}
+.topic p,.topic li{max-width:72ch;overflow-wrap:break-word}
+.col,.topic,.box,.lab,.quiz,.prob{min-width:0}
+.topic ul,.topic ol{padding-left:22px}
+.topic li{margin:4px 0}
+.why{font-size:15px;color:var(--muted);margin:-6px 0 12px}
+
+/* callouts: label is visible text so meaning never relies on color */
+.box{border-radius:12px;padding:14px 16px;margin:16px 0;border:1px solid var(--line);background:var(--surface)}
+.box > .lbl{display:flex;align-items:center;gap:8px;font-weight:700;font-size:15px;margin-bottom:4px}
+.box > .lbl::before{content:attr(data-ico);font-size:16px}
+.box p:last-child,.box ul:last-child{margin-bottom:0}
+.box p:first-of-type{margin-top:0}
+.idea{background:var(--idea-bg);border-color:transparent}
+.analogy{background:var(--anal-bg);border-color:transparent}
+.trap{background:var(--bad-bg);border-color:transparent}
+.trap > .lbl{color:var(--bad)}
+.tip{background:var(--good-bg);border-color:transparent}
+.tip > .lbl{color:var(--good)}
+.warnbox{background:var(--warn-bg);border-color:transparent}
+.warnbox > .lbl{color:var(--warn)}
+.remember{border:2px dashed var(--lc);background:var(--surface)}
+
+/* code */
+pre{background:var(--code-bg);color:var(--code-ink);padding:14px 16px;border-radius:10px;overflow-x:auto;font-size:14px;line-height:1.55;margin:12px 0;position:relative}
+pre .fname{display:block;color:var(--code-c);font-size:12px;margin:-4px 0 8px;font-family:"JetBrains Mono",monospace}
+:not(pre) > code{overflow-wrap:anywhere;background:var(--surface-2);border:1px solid var(--line);border-radius:5px;padding:1px 5px;font-size:.88em}
+.tk-c{color:var(--code-c);font-style:italic}.tk-s{color:var(--code-s)}.tk-k{color:var(--code-k)}.tk-n{color:var(--code-n)}.tk-f{color:var(--code-f)}
+pre.out{background:var(--surface-2);color:var(--ink);border:1px solid var(--line)}
+pre.out::before{content:"Output";display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-family:"Atkinson Hyperlegible",sans-serif;font-weight:700}
+.copy{position:absolute;top:8px;right:8px;border:1px solid #3a4459;background:#252d40;color:#cfd7e6;border-radius:6px;font-size:12px;padding:3px 8px;cursor:pointer;font-family:"Atkinson Hyperlegible",sans-serif}
+
+/* line-by-line annotation */
+.anno{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;margin:8px 0 16px;font-size:15.5px}
+.anno code{white-space:nowrap}
+@media (max-width:640px){.anno{grid-template-columns:1fr;gap:2px}.anno > span:nth-child(odd){text-align:left;margin-top:8px}.anno code{white-space:normal}}
+.anno > span:nth-child(odd){text-align:right}
+
+/* tables */
+.tbl-wrap{overflow-x:auto;margin:12px 0}
+table{border-collapse:collapse;width:100%;font-size:15px;background:var(--surface);border-radius:10px;overflow:hidden}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:var(--surface-2);font-weight:700}
+
+/* interactive widgets */
+.lab{border:2px solid var(--lc);border-radius:14px;background:var(--surface);margin:22px 0;overflow:hidden}
+.lab-head{background:var(--lc);color:var(--on-lc);padding:8px 14px;font-weight:700;font-size:15px;display:flex;gap:8px;align-items:center}
+.lab-head::before{content:"🧪"}
+.lab-body{padding:14px}
+.lab-body p.how{margin:0 0 10px;color:var(--muted);font-size:15px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}
+input[type=text],select,textarea{font:inherit;font-size:15px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--ink);min-width:0}
+input[type=text]{flex:1 1 220px}
+.btn{font:inherit;font-size:15px;font-weight:700;padding:7px 13px;border-radius:8px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);cursor:pointer}
+.btn:hover{border-color:var(--lc)}
+.btn.primary{background:var(--lc);border-color:var(--lc);color:var(--on-lc)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.console{background:var(--code-bg);color:var(--code-ink);font-family:"JetBrains Mono",monospace;font-size:13.5px;border-radius:10px;padding:10px 12px;min-height:60px;white-space:pre-wrap;overflow-x:auto;margin-top:8px}
+.console .err{color:#FF8F87}.console .ok{color:#9BD58A}.console .dim{color:var(--code-c)}.console .ylw{color:#E7C66B}
+.chip{display:inline-block;padding:3px 9px;border-radius:99px;border:1px solid var(--line);font-family:"JetBrains Mono",monospace;font-size:13px;background:var(--surface-2)}
+.chip.hot{background:var(--hl);border-color:transparent}
+.stepper .cap{min-height:3.2em;margin:10px 0 0;font-size:15.5px}
+.stepper .ctrl{display:flex;gap:8px;align-items:center;margin-top:8px}
+.stepper .count{font-size:14px;color:var(--muted)}
+
+/* quiz */
+.quiz{border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:6px 16px 14px;margin:24px 0}
+.quiz > .qhead{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 0}
+.quiz > .qhead strong{font-family:"Bricolage Grotesque",sans-serif;font-size:19px}
+.qscore{font-size:14px;color:var(--muted)}
+.q{padding:12px 0;border-top:1px solid var(--line)}
+.q .qt{overflow-wrap:anywhere;font-weight:700;margin-bottom:8px}
+.q pre{margin:6px 0 10px}
+.opts{display:grid;gap:6px}
+.opt{text-align:left;font:inherit;font-size:15.5px;padding:8px 12px;border-radius:9px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);cursor:pointer;display:flex;gap:10px}
+.opt > span:last-child{min-width:0;overflow-wrap:anywhere}
+.opt .k{font-weight:700;color:var(--muted)}
+.opt:hover:not(:disabled){border-color:var(--lc)}
+.opt.right{background:var(--good-bg);border-color:var(--good)}
+.opt.wrong{background:var(--bad-bg);border-color:var(--bad)}
+.opt:disabled{cursor:default}
+.opt.right::after{content:"✓ correct";margin-left:auto;color:var(--good);font-weight:700;font-size:13px;white-space:nowrap}
+.opt.wrong::after{content:"✗ your pick";margin-left:auto;color:var(--bad);font-weight:700;font-size:13px;white-space:nowrap}
+.explain{display:none;margin-top:8px;font-size:15px;padding:8px 12px;border-left:4px solid var(--lc);background:var(--surface-2);border-radius:0 8px 8px 0}
+.q.answered .explain{display:block}
+
+.done-row{display:flex;justify-content:flex-end;margin:20px 0 0}
+.done-btn{font:inherit;font-weight:700;padding:10px 16px;border-radius:10px;border:2px solid var(--lc);background:var(--surface);color:var(--ink);cursor:pointer}
+.done-btn.on{background:var(--lc);color:var(--on-lc)}
+
+/* practice problems */
+details{border:1px solid var(--line);border-radius:10px;background:var(--surface);margin:8px 0;padding:0 14px}
+details > summary{cursor:pointer;padding:10px 0;font-weight:700}
+details[open]{padding-bottom:12px}
+.prob{border:1px solid var(--line);border-left:6px solid var(--lc);border-radius:12px;background:var(--surface);padding:14px 16px;margin:18px 0}
+.prob h4{margin:0 0 6px;font-size:19px}
+.prob .lvl{font-size:13px;color:var(--muted);font-weight:700}
+
+/* diagrams */
+.fig{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px;margin:16px 0;overflow-x:auto}
+.fig svg{display:block;margin:0 auto}
+.fig figcaption{font-size:14px;color:var(--muted);margin-top:6px;text-align:center}
+.fig text{font-family:"Atkinson Hyperlegible",sans-serif;fill:var(--ink)}
+.fig .mono{font-family:"JetBrains Mono",monospace}
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:640px){.cmp{grid-template-columns:1fr}}
+.cmp > div{min-width:0;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--surface)}
+.cmp h4{margin-top:0}
+.kbd{border:1px solid var(--line);border-bottom-width:3px;border-radius:6px;padding:0 6px;font-size:13px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.plan{list-style:none;padding:0!important;margin:12px 0;border-left:4px solid var(--l-exam)}
+.plan li{padding:6px 0 6px 16px;position:relative;max-width:none!important}
+.plan li b{display:inline-block;min-width:118px}
+#readBar{position:fixed;left:0;right:0;top:env(safe-area-inset-top,0px);height:3px;background:var(--l-found);transform-origin:0 50%;transform:scaleX(0);z-index:60;pointer-events:none}
+#searchIn{width:100%;font:inherit;font-size:15px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--ink)}
+.search-msg{font-size:13px;color:var(--muted);min-height:1.3em;margin:4px 0 8px}
+#quickBtn{width:100%;margin:0 0 12px;text-align:left;font-weight:700}
+#quickBtn[aria-pressed="true"]{background:var(--l-exam);border-color:var(--l-exam);color:var(--on-lc)}
+body.quick .topic > :not(.topic-head):not(.idea):not(.trap):not(.remember):not(.warnbox):not(.recipe):not(.done-row){display:none}
+body.quick #x3 > *{display:revert}
+body.quick #x1, body.quick #x2, body.quick #x4, body.quick #x5, body.quick #x7, body.quick #x6, body.quick .hero, body.quick .col > section.box{display:none}
+body.quick #navLines a[data-id="x1"], body.quick #navLines a[data-id="x2"], body.quick #navLines a[data-id="x4"], body.quick #navLines a[data-id="x5"], body.quick #navLines a[data-id="x7"], body.quick #navLines a[data-id="x6"]{display:none}
+body.quick .topic{padding-top:28px;margin-top:24px}
+.drill{border:1px solid var(--line);border-left:6px solid var(--lc);border-radius:12px;background:var(--surface);padding:12px 14px;margin:14px 0}
+.drill .dh{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--muted);font-weight:700}
+.drill .dp{margin:4px 0 6px;font-weight:700}
+.drill input.blank{font:inherit;font-size:13.5px;min-width:0;flex:none;background:#2A3350;color:#FFFFFF;border:0;border-bottom:2px solid #8EC5FF;border-radius:3px;padding:0 3px;margin:0 1px}
+.drill input.blank:focus{outline:2px solid #8EC5FF;outline-offset:1px}
+.drill input.blank.ok{background:#1C4A2C;border-bottom-color:#5BD38A}
+.drill input.blank.no{background:#5A2020;border-bottom-color:#FF7A72}
+.dfb{font-size:15px;margin-top:6px}
+.dfb .good{color:var(--good);font-weight:700}.dfb .bad{color:var(--bad);font-weight:700}
+.bugbox{background:var(--code-bg);border-radius:10px;padding:8px 0;overflow-x:auto;margin:8px 0}
+.bugline{display:block;min-width:100%;width:max-content;text-align:left;font:13.5px/1.6 "JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;background:transparent;color:var(--code-ink);border:0;border-left:4px solid transparent;padding:1px 12px 1px 6px;cursor:pointer;white-space:pre}
+.bugline:hover:not(:disabled){background:rgba(255,255,255,.07)}
+.bugline:disabled{cursor:default}
+.bugline .ln{color:var(--code-c);display:inline-block;width:2.4em;user-select:none}
+.bugline.hit{background:rgba(91,211,138,.2);border-left-color:#5BD38A}
+.bugline.miss{background:rgba(255,122,114,.2);border-left-color:#FF7A72}
+.hide-print{}
+@media print{.rail,.menu-btn,.lab,.quiz,.done-row{display:none!important}.shell{display:block}.topic{break-before:page}}
+</style>
+<style>
+/* additions for the video subsets */
+.kicker{font-size:15px;font-weight:700;color:var(--l-found);margin:0 0 10px}
+.newtag{display:inline-block;font-family:"Atkinson Hyperlegible",system-ui,sans-serif;font-size:12px;font-weight:700;padding:2px 9px;border-radius:99px;background:var(--lc,var(--l-found));color:var(--on-lc);vertical-align:middle;margin-left:8px;letter-spacing:0}
+.box.plus{border:2px solid var(--lc,var(--l-found));background:var(--surface)}
+.box.plus > .lbl{color:var(--lc,var(--l-found))}
+.plan.chapters{border-left-color:var(--l-found)}
+.plan.chapters li b{min-width:64px;font-variant-numeric:tabular-nums}
+.hero-map svg a{cursor:pointer}
+.hero-map svg a:focus-visible circle{stroke-width:7}
+.elgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:10px}
+@media (max-width:760px){.elgrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.elgrid h4{font-size:13px;margin:0 0 4px;color:var(--muted);min-height:2.6em}
+.elbox{min-height:84px;border:1px dashed var(--line);border-radius:8px;padding:6px;display:flex;flex-direction:column;gap:4px;background:var(--surface-2)}
+.elbox .chip{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.elbox.console{margin-top:0;border-style:solid;background:var(--code-bg);color:var(--code-ink)}
+.next-box{border:2px dashed var(--l-found);background:var(--surface)}
+.src-list{font-size:15px}
+.src-list li{margin:4px 0}
+</style>
+</head>
+<body>
+<div id="readBar" aria-hidden="true"></div>
+<button class="menu-btn" id="menuBtn" aria-controls="rail" aria-expanded="false">☰ Topics</button>
+<div class="shell">
+<nav class="rail" id="rail" aria-label="Topics">
+  <div class="rail-head"><strong>Video 2 map</strong><button class="theme-btn" id="themeBtn" aria-label="Switch light or dark theme">◐ Theme</button></div>
+  <div class="progress" id="progTxt">0 of 0 stops understood</div>
+  <div class="pbar" aria-hidden="true"><i id="progBar"></i></div>
+  <label for="searchIn" class="sr">Search the notes</label>
+  <input type="search" id="searchIn" placeholder="Search this video’s notes" autocomplete="off">
+  <p class="search-msg" id="searchMsg" aria-live="polite"></p>
+  <div id="navLines"></div>
+</nav>
+<main class="main" id="main">
+<div class="col">
+<style>
+[data-group=found]{--lc:var(--l-found)} [data-group=node]{--lc:var(--l-node)} [data-group=express]{--lc:var(--l-express)}
+[data-group=arch]{--lc:var(--l-arch)} [data-group=prisma]{--lc:var(--l-prisma)} [data-group=exam]{--lc:var(--l-exam)}
+</style>
+<header class="hero" id="top">
+  <p class="kicker">Backend from zero, video 2 of 3 (about 15 minutes)</p>
+  <h1>Modules, process.argv and path</h1>
+  <p class="lede">How one file uses code from another, how your program reads what was typed in the terminal, and how to build file paths that work on Windows, macOS and Linux alike. Ends with a small command-line tool that uses all three.</p>
+  <figure class="hero-map" aria-label="Route map for this video"><svg viewBox="0 0 640 120" width="640" height="120" role="img" aria-label="Stops in this video"><g stroke-width="9" stroke-linecap="round" fill="none"><path d="M50 52 H230" stroke="var(--l-node)"/><path d="M230 52 H410" stroke="var(--l-node)"/><path d="M410 52 H590" stroke="var(--l-exam)"/></g><g id="mapDots"><a href="#t4"><title>Modules</title><circle cx="50" cy="52" r="11" stroke="var(--l-found)" stroke-width="5" data-id="t4" data-col="var(--l-found)" fill="var(--surface)"/><text x="50" y="84" text-anchor="middle" font-size="12" font-weight="700" style="fill:var(--ink)">4</text><text x="50" y="102" text-anchor="middle" font-size="13" style="fill:var(--muted)">Modules</text></a><a href="#t5"><title>process</title><circle cx="230" cy="52" r="11" stroke="var(--l-node)" stroke-width="5" data-id="t5" data-col="var(--l-node)" fill="var(--surface)"/><text x="230" y="84" text-anchor="middle" font-size="12" font-weight="700" style="fill:var(--ink)">5</text><text x="230" y="102" text-anchor="middle" font-size="13" style="fill:var(--muted)">process</text></a><a href="#t6"><title>path</title><circle cx="410" cy="52" r="11" stroke="var(--l-node)" stroke-width="5" data-id="t6" data-col="var(--l-node)" fill="var(--surface)"/><text x="410" y="84" text-anchor="middle" font-size="12" font-weight="700" style="fill:var(--ink)">6</text><text x="410" y="102" text-anchor="middle" font-size="13" style="fill:var(--muted)">path</text></a><a href="#p-mini"><title>Mini project</title><circle cx="590" cy="52" r="11" stroke="var(--l-exam)" stroke-width="5" data-id="p-mini" data-col="var(--l-exam)" fill="var(--surface)"/><text x="590" y="84" text-anchor="middle" font-size="12" font-weight="700" style="fill:var(--ink)">★</text><text x="590" y="102" text-anchor="middle" font-size="13" style="fill:var(--muted)">Mini project</text></a></g></svg></figure>
+</header>
+<section class="box idea" style="margin-top:28px">
+  <div class="lbl" data-ico="🎬">Chapters</div>
+  <ul class="plan chapters">
+    <li><b>00:00</b> Why split code into files? Recap of video 1</li>
+    <li><b>01:00</b> Stop 4: Module system (CommonJS, ES Modules, the exports trap, caching)</li>
+    <li><b>06:00</b> Stop 5: Process module (argv, a CLI calculator, env variables)</li>
+    <li><b>10:30</b> Stop 6: Path module (join, parse, resolve, __dirname)</li>
+    <li><b>13:30</b> Mini project: file-info CLI</li>
+    <li><b>14:30</b> Recap and the end-of-video challenge</li>
+  </ul>
+</section>
+
+<section class="box tip" data-group="found">
+  <div class="lbl" data-ico="↩️">Last time, in 20 seconds</div>
+  <ul>
+    <li>Node.js is a <b>runtime</b>: the V8 engine plus system APIs like <code>fs</code> and <code>http</code>. Not a language, not a framework.</li>
+    <li>It runs your JavaScript on one thread but never waits for slow I/O: callbacks run later via the event loop.</li>
+    <li>You ran <code>node hello.js</code>, made a <code>package.json</code> with <code>npm init -y</code>, and used <code>node --watch</code>.</li>
+  </ul>
+</section>
+<section class="topic" id="t4" data-group="found" data-num="4" data-title="Module system">
+  <div class="topic-head"><div class="badge">4</div><div><div class="meta">Foundations line</div><h2>Module system</h2></div></div>
+  <div class="box idea"><div class="lbl" data-ico="💡">Big idea</div><p>A <b>module</b> is just a file. Everything inside it is <b>private</b> unless you <b>export</b> it, and other files must <b>import</b> it to use it. Node has two systems: <b>CommonJS</b> (<code>require</code> / <code>module.exports</code>, the classic default) and <b>ES Modules</b> (<code>import</code> / <code>export</code>, the modern standard).</p></div>
+  <div class="box analogy"><div class="lbl" data-ico="🏠">Analogy</div><p>Each file is a house with the curtains closed. Exporting is putting something on the front porch. Importing is walking to a neighbour's porch and picking it up. You can't reach inside their house.</p></div>
+
+  <h3>Three kinds of modules</h3>
+  <div class="tbl-wrap"><table>
+    <tr><th>Kind</th><th>Example</th><th>How you load it</th></tr>
+    <tr><td>Core (built into Node)</td><td>fs, path, http, events, readline</td><td><code>require("fs")</code> or <code>require("node:fs")</code></td></tr>
+    <tr><td>Third-party (from npm)</td><td>express, nodemon, @prisma/client</td><td><code>npm i express</code> then <code>require("express")</code></td></tr>
+    <tr><td>Local (your own files)</td><td>./math.js, ./routes/users.js</td><td><code>require("./math")</code>: <b>must</b> start with <code>./</code> or <code>../</code></td></tr>
+  </table></div>
+
+  <div class="lab" id="modLab"><div class="lab-head">Lab: the same code in both systems</div><div class="lab-body">
+    <p class="how">Switch between CommonJS and ES Modules and compare line by line.</p>
+    <div class="row" role="tablist"><button class="btn primary" data-mod="cjs" role="tab" aria-selected="true">CommonJS</button><button class="btn" data-mod="esm" role="tab" aria-selected="false">ES Modules</button></div>
+    <div class="cmp"><div><pre><code data-lang="js" id="modA"></code></pre></div><div><pre><code data-lang="js" id="modB"></code></pre></div></div>
+    <p id="modNote" class="how"></p>
+  </div></div>
+
+  <h3>CommonJS in detail</h3>
+<pre><code data-lang="js"><span class="fname">math.js</span>const add = (a, b) => a + b;
+const sub = (a, b) => a - b;
+const SECRET = 42;              // not exported → private to this file
+
+// Option A: export an object of things
+module.exports = { add, sub };
+
+// Option B: add properties one at a time
+// exports.add = add;
+// exports.sub = sub;
+</code></pre>
+<pre><code data-lang="js"><span class="fname">app.js</span>const math = require("./math");        // .js extension optional in CommonJS
+math.add(2, 3);                         // 5
+
+const { add } = require("./math");      // destructure just what you need
+add(1, 1);                              // 2
+</code></pre>
+
+  <h4>The <code>exports</code> trap (a classic exam question)</h4>
+  <p><code>exports</code> starts as a shortcut pointing to the same object as <code>module.exports</code>. Node only ever returns <b><code>module.exports</code></b>.</p>
+<pre><code data-lang="js">exports.hello = "hi";          // ✅ works: adds to the shared object
+module.exports = { a: 1 };     // ✅ works: replaces what's exported
+exports = { a: 1 };            // ❌ does nothing: you just pointed the shortcut elsewhere
+</code></pre>
+  <figure class="fig"><svg viewBox="0 0 620 150" width="620" height="150" role="img" aria-labelledby="exT"><title id="exT">exports and module.exports point to the same object until exports is reassigned</title>
+    <defs><marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--muted)"/></marker></defs>
+    <rect x="20" y="20" width="160" height="36" rx="8" fill="var(--surface-2)" stroke="var(--line)"/><text x="100" y="43" text-anchor="middle" class="mono" font-size="14">module.exports</text>
+    <rect x="20" y="90" width="160" height="36" rx="8" fill="var(--surface-2)" stroke="var(--line)"/><text x="100" y="113" text-anchor="middle" class="mono" font-size="14">exports</text>
+    <rect x="280" y="50" width="130" height="46" rx="10" fill="var(--good-bg)" stroke="var(--good)" stroke-width="2"/><text x="345" y="78" text-anchor="middle" class="mono" font-size="14">{ }</text>
+    <path d="M182 38 L278 64" stroke="var(--muted)" stroke-width="2" marker-end="url(#ar2)"/><path d="M182 108 L278 84" stroke="var(--muted)" stroke-width="2" marker-end="url(#ar2)"/>
+    <text x="440" y="66" font-size="13">← this object is what</text><text x="440" y="84" font-size="13">require() hands back</text>
+  </svg></figure>
+
+  <h3>ES Modules in detail</h3>
+  <p>To use ESM in Node, either set <code>"type": "module"</code> in package.json or name files <code>.mjs</code>.</p>
+<pre><code data-lang="js"><span class="fname">math.js</span>export const add = (a, b) => a + b;      // named export
+export function sub(a, b) { return a - b; }
+export default function multiply(a, b) {  // default export (max one per file)
+  return a * b;
+}
+</code></pre>
+<pre><code data-lang="js"><span class="fname">app.js</span>import multiply, { add, sub } from "./math.js";  // default first, then { named }
+import * as math from "./math.js";               // everything as one object
+import fs from "fs";                             // core modules work too
+import express from "express";
+</code></pre>
+  <div class="tbl-wrap"><table>
+    <tr><th></th><th>CommonJS</th><th>ES Modules</th></tr>
+    <tr><td>Import</td><td><code>const x = require("x")</code></td><td><code>import x from "x"</code></td></tr>
+    <tr><td>Export</td><td><code>module.exports = …</code></td><td><code>export</code> / <code>export default</code></td></tr>
+    <tr><td>Extension in local paths</td><td>optional</td><td><b>required</b> (<code>"./math.js"</code>)</td></tr>
+    <tr><td>Loading</td><td>synchronous, at runtime; can be inside an <code>if</code></td><td>static, at top of file; analysed before running</td></tr>
+    <tr><td><code>__dirname</code></td><td>available</td><td>not available (use <code>import.meta.dirname</code> in Node 20.11+)</td></tr>
+    <tr><td>Top-level <code>await</code></td><td>no</td><td>yes</td></tr>
+    <tr><td>Enabled by</td><td>default</td><td><code>"type": "module"</code> or <code>.mjs</code></td></tr>
+  </table></div>
+
+  <h3>Modern Node module tips <span class="newtag">New</span></h3>
+  <div class="tbl-wrap"><table>
+    <tr><th>Tip</th><th>Code</th><th>Why</th></tr>
+    <tr><td>Prefix core modules with <code>node:</code></td><td><code>require("node:fs")</code><br><code>import fs from "node:fs"</code></td><td>Makes it obvious the module is built in, and it can never be confused with an npm package of the same name. Some newer core modules, like <code>node:test</code>, only work with the prefix.</td></tr>
+    <tr><td><code>__dirname</code> in ES modules</td><td><code>import.meta.dirname</code><br><code>import.meta.filename</code></td><td>No longer experimental from Node 24.0 and 22.16. The older workaround, <code>path.dirname(fileURLToPath(import.meta.url))</code>, still works everywhere.</td></tr>
+    <tr><td><code>require()</code> an ES module</td><td><code>const { add } = require("./math.mjs")</code></td><td>Works without a flag from Node 20.19 and 22.12, as long as that module has no top-level <code>await</code>. Before that you got <code>ERR_REQUIRE_ESM</code>.</td></tr>
+    <tr><td>Load a module only when needed</td><td><code>const { add } = await import("./math.js")</code></td><td>Dynamic <code>import()</code> returns a Promise and works in both systems.</td></tr>
+    <tr><td>JSON files</td><td>CJS: <code>require("./data.json")</code><br>ESM: <code>import data from "./data.json" with { type: "json" }</code></td><td>Both parse the file for you, once. For data that changes while the program runs, read it with <code>fs</code> instead (video 3), because the module cache keeps the first copy.</td></tr>
+  </table></div>
+
+  <h3>What actually happens when you <code>require</code></h3>
+  <ol>
+    <li><b>Resolve</b>: work out the file path (core module? <code>./</code> path? look in <code>node_modules</code>?).</li>
+    <li><b>Wrap</b>: Node wraps your file in a function: <code>(function (exports, require, module, __filename, __dirname) { …your code… })</code>. That's why those five names exist without being declared, and why your variables stay private.</li>
+    <li><b>Run</b> the file once.</li>
+    <li><b>Cache</b>: the result is stored. Requiring the same file again returns the cached object and does <b>not</b> re-run the code.</li>
+  </ol>
+  <h4>See the cache yourself <span class="newtag">New</span></h4>
+<pre><code data-lang="js"><span class="fname">counter.js</span>console.log("counter.js is running");
+let count = 0;
+module.exports = { next: () => ++count };
+</code></pre>
+<pre><code data-lang="js"><span class="fname">app.js</span>const a = require("./counter");
+const b = require("./counter");   // cached: counter.js does NOT run again
+console.log(a === b);             // true: the very same object
+console.log(a.next(), b.next());  // 1 2: they share count
+</code></pre>
+<pre class="out">counter.js is running
+true
+1 2</pre>
+  <p>That’s why a module is a natural home for shared things, like one database connection that every file reuses.</p>
+
+  <div class="box trap"><div class="lbl" data-ico="⚠️">Exam traps</div><ul>
+    <li><code>require("math")</code> without <code>./</code> looks in node_modules, not your folder: "Cannot find module".</li>
+    <li>Mixing systems: using <code>require</code> in a file with <code>"type": "module"</code> gives "require is not defined in ES module scope".</li>
+    <li>Forgetting to export: the import gives <code>undefined</code> and calling it says "is not a function".</li>
+    <li>Code at the top of a module runs only once, however many times it's required.</li>
+  </ul></div>
+  <div class="box remember"><div class="lbl" data-ico="📌">Remember</div><ul>
+    <li>File = module = private by default.</li>
+    <li>CJS: <code>module.exports</code> + <code>require</code>. ESM: <code>export</code> + <code>import</code> with <code>.js</code> extension.</li>
+    <li>Never reassign <code>exports = …</code>; use <code>module.exports = …</code>.</li>
+  </ul></div>
+  <div class="quiz" data-quiz="t4"></div>
+</section>
+
+<section class="topic" id="t5" data-group="node" data-num="5" data-title="Process module">
+  <div class="topic-head"><div class="badge">5</div><div><div class="meta">Node core line</div><h2>Process module: <code>process.argv</code></h2></div></div>
+  <div class="box idea"><div class="lbl" data-ico="💡">Big idea</div><p><code>process</code> is a global object describing the <b>currently running program</b>. You don't need to require it. Its star feature on your syllabus is <code>process.argv</code>: an <b>array of the words typed in the terminal</b> to start the program, which lets you build command-line tools.</p></div>
+  <div class="box analogy"><div class="lbl" data-ico="📋">Analogy</div><p><code>process</code> is your program's ID badge and control panel: who launched it, with what instructions (<code>argv</code>), with what secret settings (<code>env</code>), and a big red stop button (<code>exit</code>).</p></div>
+
+  <h3>The shape of <code>process.argv</code></h3>
+  <figure class="fig"><svg viewBox="0 0 700 150" width="700" height="150" role="img" aria-labelledby="argvT"><title id="argvT">process.argv indexes: 0 is node path, 1 is script path, 2 onward are your arguments</title>
+    <text x="20" y="30" class="mono" font-size="16">$ node  greet.js  Asha  21</text>
+    <g font-size="13" class="mono">
+      <rect x="20" y="55" width="200" height="40" rx="8" fill="var(--surface-2)" stroke="var(--line)"/><text x="120" y="80" text-anchor="middle">"/usr/bin/node"</text>
+      <rect x="230" y="55" width="200" height="40" rx="8" fill="var(--surface-2)" stroke="var(--line)"/><text x="330" y="80" text-anchor="middle">"/home/me/greet.js"</text>
+      <rect x="440" y="55" width="110" height="40" rx="8" fill="var(--good-bg)" stroke="var(--good)" stroke-width="2"/><text x="495" y="80" text-anchor="middle">"Asha"</text>
+      <rect x="560" y="55" width="110" height="40" rx="8" fill="var(--good-bg)" stroke="var(--good)" stroke-width="2"/><text x="615" y="80" text-anchor="middle">"21"</text>
+      <text x="120" y="115" text-anchor="middle" style="fill:var(--muted)">[0]</text><text x="330" y="115" text-anchor="middle" style="fill:var(--muted)">[1]</text><text x="495" y="115" text-anchor="middle" style="fill:var(--muted)">[2]</text><text x="615" y="115" text-anchor="middle" style="fill:var(--muted)">[3]</text>
+    </g>
+    <text x="555" y="140" text-anchor="middle" font-size="13" font-weight="700" style="fill:var(--good)">process.argv.slice(2) → your arguments</text>
+  </svg><figcaption>Indexes 0 and 1 are always the Node path and the script path, as full absolute paths.</figcaption></figure>
+
+<pre><code data-lang="js"><span class="fname">greet.js</span>const args = process.argv.slice(2);   // drop node + script path
+const name = args[0];
+const age = Number(args[1]);          // argv values are ALWAYS strings
+
+if (!name) {
+  console.log("Usage: node greet.js &lt;name&gt; &lt;age&gt;");
+  process.exit(1);                    // stop; non-zero code = failure
+}
+console.log(`Hi ${name}, next year you'll be ${age + 1}`);
+</code></pre>
+<pre class="out">$ node greet.js Asha 21
+Hi Asha, next year you'll be 22</pre>
+  <div class="anno">
+    <span><code>slice(2)</code></span><span>returns a new array starting from index 2: only what the user typed.</span>
+    <span><code>Number(...)</code></span><span>without it, <code>"21" + 1</code> would give <code>"211"</code>.</span>
+    <span><code>process.exit(1)</code></span><span>ends the program immediately. 0 = success, any other number = error.</span>
+  </div>
+
+  <div class="lab" id="argvLab"><div class="lab-head">Lab: argv visualiser</div><div class="lab-body">
+    <p class="how">Edit the command and watch the array. Try quotes: <code>node calc.js add "hello world" 5</code></p>
+    <div class="row"><span class="chip">$</span><input type="text" id="argvIn" value="node calc.js add 5 3" aria-label="Command"></div>
+    <div id="argvView" style="margin-top:10px"></div>
+    <div class="console" id="argvOut" aria-live="polite"></div>
+  </div></div>
+
+  <h3>Classic exam program: a command-line calculator</h3>
+<pre><code data-lang="js"><span class="fname">calc.js</span>const [op, a, b] = process.argv.slice(2);   // destructure the args
+const x = Number(a);
+const y = Number(b);
+
+if (isNaN(x) || isNaN(y)) {
+  console.log("Please pass two numbers");
+  process.exit(1);
+}
+
+switch (op) {
+  case "add": console.log(x + y); break;
+  case "sub": console.log(x - y); break;
+  case "mul": console.log(x * y); break;
+  case "div":
+    if (y === 0) { console.log("Cannot divide by zero"); process.exit(1); }
+    console.log(x / y); break;
+  default: console.log("Unknown operation. Use add, sub, mul or div");
+}
+</code></pre>
+
+  <h3>The rest of <code>process</code></h3>
+  <div class="tbl-wrap"><table>
+    <tr><th>Property / method</th><th>What it does</th><th>Example</th></tr>
+    <tr><td><code>process.argv</code></td><td>Command-line words (array of strings)</td><td><code>process.argv.slice(2)</code></td></tr>
+    <tr><td><code>process.env</code></td><td>Environment variables (object of strings): config and secrets</td><td><code>const PORT = process.env.PORT || 3000;</code></td></tr>
+    <tr><td><code>process.exit(code)</code></td><td>Stop the program now</td><td><code>process.exit(0)</code></td></tr>
+    <tr><td><code>process.cwd()</code></td><td>Folder you ran <code>node</code> from (current working directory)</td><td>can differ from <code>__dirname</code>!</td></tr>
+    <tr><td><code>process.pid</code></td><td>Process ID number</td><td><code>12345</code></td></tr>
+    <tr><td><code>process.platform</code></td><td>Operating system</td><td><code>"win32"</code>, <code>"linux"</code>, <code>"darwin"</code></td></tr>
+    <tr><td><code>process.stdin / stdout</code></td><td>Keyboard input / terminal output streams (used by readline)</td><td><code>process.stdout.write("no newline")</code></td></tr>
+    <tr><td><code>process.on("exit", fn)</code></td><td>Run code as the program ends (process is an EventEmitter)</td><td></td></tr>
+  </table></div>
+  <div class="box tip"><div class="lbl" data-ico="🔐">Environment variables in practice</div><p>Put secrets in a <code>.env</code> file (never commit it), e.g. <code>DATABASE_URL="postgresql://..."</code>. Prisma reads <code>.env</code> automatically. For your own code, Node 20.6+ can load it with <code>node --env-file=.env app.js</code>, or use the <code>dotenv</code> package: <code>require("dotenv").config()</code>.</p></div>
+  <h3>Load <code>.env</code> without a package <span class="newtag">New</span></h3>
+<pre><code data-lang="sh"><span class="fname">.env</span># never commit this file: add .env to .gitignore
+PORT=4000
+API_KEY="abc123"
+</code></pre>
+<pre><code data-lang="js">// Option 1: let Node load it before your code runs
+//   node --env-file=.env app.js
+// Option 2: load it from code
+process.loadEnvFile();                  // reads ./.env by default
+const port = Number(process.env.PORT ?? 3000);
+console.log(`Starting on ${port}`);
+</code></pre>
+  <p>Both are stable from Node 24.10 (and 22.21). A variable already set in your shell wins over the file. <code>--env-file</code> stops with an error if the file is missing; use <code>--env-file-if-exists=.env</code> when it’s optional.</p>
+
+  <h3>Reading flags with <code>util.parseArgs</code> <span class="newtag">New</span></h3>
+  <p>Real command-line tools take flags like <code>--name Asha</code> or <code>-s</code>. Instead of picking them out of <code>argv</code> by hand, use the built-in parser.</p>
+<pre><code data-lang="js"><span class="fname">greet.js</span>const { parseArgs } = require("node:util");
+
+const { values, positionals } = parseArgs({
+  options: {
+    name:  { type: "string", short: "n", default: "stranger" },
+    shout: { type: "boolean", short: "s" }
+  },
+  allowPositionals: true
+});
+
+let msg = `Hello, ${values.name}`;
+if (values.shout) msg = msg.toUpperCase();
+console.log(msg, positionals);
+</code></pre>
+<pre class="out">$ node greet.js --name Asha -s extra
+HELLO, ASHA [ 'extra' ]</pre>
+  <p>An unknown flag such as <code>--colour</code> throws an error, which is usually what you want: typos get caught.</p>
+
+  <h3>Ending a program cleanly <span class="newtag">New</span></h3>
+  <div class="cmp"><div><h4><code>process.exit(1)</code></h4><p>Stops <b>immediately</b>. Anything still waiting, like a file write or a log line, can be lost.</p></div><div><h4><code>process.exitCode = 1</code></h4><p>Records the exit code, lets Node finish its pending work, then exits on its own. Prefer this in real programs.</p></div></div>
+<pre><code data-lang="js">// Ctrl+C sends the SIGINT signal. Clean up before leaving.
+process.on("SIGINT", () => {
+  console.log("\nSaving and shutting down…");
+  server.close(() => process.exit(0));
+});
+</code></pre>
+  <div class="tbl-wrap"><table>
+    <tr><th>Also handy</th><th>Gives you</th></tr>
+    <tr><td><code>process.uptime()</code></td><td>seconds since the program started</td></tr>
+    <tr><td><code>process.memoryUsage().heapUsed</code></td><td>bytes of memory your JavaScript objects use</td></tr>
+    <tr><td><code>process.version</code></td><td>the Node version, e.g. <code>"v24.11.0"</code></td></tr>
+  </table></div>
+
+  <div class="box trap"><div class="lbl" data-ico="⚠️">Exam traps</div><ul>
+    <li>Your first argument is <code>argv[2]</code>, not <code>argv[0]</code>.</li>
+    <li>Every argv value is a string. Convert numbers.</li>
+    <li><code>process.cwd()</code> depends on where you ran the command; <code>__dirname</code> is always the file's own folder.</li>
+  </ul></div>
+  <div class="quiz" data-quiz="t5"></div>
+</section>
+
+<section class="topic" id="t6" data-group="node" data-num="6" data-title="Path module">
+  <div class="topic-head"><div class="badge">6</div><div><div class="meta">Node core line</div><h2>Path module: <code>path.join</code></h2></div></div>
+  <div class="box idea"><div class="lbl" data-ico="💡">Big idea</div><p>File paths look different on different systems: Windows uses <code>\</code>, Mac and Linux use <code>/</code>. The <code>path</code> module builds and takes apart paths <b>correctly for whatever OS the code runs on</b>. Never glue paths together with <code>+</code>.</p></div>
+  <div class="box analogy"><div class="lbl" data-ico="🗺️">Analogy</div><p>Giving directions: "Go to the kitchen, then the cupboard, then the top shelf." <code>path.join</code> turns those steps into a correct address, and it understands "go back one room" (<code>..</code>).</p></div>
+
+<pre><code data-lang="js">const path = require("path");
+
+path.join("users", "asha", "notes.txt");
+// "users/asha/notes.txt"   (Windows: "users\\asha\\notes.txt")
+
+path.join(__dirname, "data", "todos.json");
+// "/home/me/project/data/todos.json"  ← the most common use of all
+
+path.join("/a/b", "../c");        // "/a/c"     .. goes up one folder
+path.join("a", "./b", "//c/");    // "a/b/c/"   tidies extra slashes and ./
+</code></pre>
+
+  <div class="lab" id="pathLab"><div class="lab-head">Lab: path.join playground</div><div class="lab-body">
+    <p class="how">Type segments separated by commas. Assume <code>__dirname</code> is <code>/home/me/project</code>. Try <code>__dirname, .., public, index.html</code></p>
+    <div class="row"><span class="chip">path.join(</span><input type="text" id="pathIn" value="__dirname, data, ../logs, app.log" aria-label="Segments"><span class="chip">)</span></div>
+    <div class="console" id="pathOut" aria-live="polite"></div>
+  </div></div>
+
+  <h3>The whole toolkit</h3>
+  <p>Given <code>const file = "/home/me/project/src/app.js";</code></p>
+  <div class="tbl-wrap"><table>
+    <tr><th>Method</th><th>Result</th><th>Plain English</th></tr>
+    <tr><td><code>path.basename(file)</code></td><td><code>"app.js"</code></td><td>last part (file name)</td></tr>
+    <tr><td><code>path.basename(file, ".js")</code></td><td><code>"app"</code></td><td>name without extension</td></tr>
+    <tr><td><code>path.dirname(file)</code></td><td><code>"/home/me/project/src"</code></td><td>the folder it's in</td></tr>
+    <tr><td><code>path.extname(file)</code></td><td><code>".js"</code></td><td>extension, including the dot</td></tr>
+    <tr><td><code>path.parse(file)</code></td><td><code>{ root:"/", dir:"/home/me/project/src", base:"app.js", ext:".js", name:"app" }</code></td><td>all the parts at once</td></tr>
+    <tr><td><code>path.resolve("data")</code></td><td><code>"/where/you/ran/node/data"</code></td><td>always an absolute path, built from <code>process.cwd()</code></td></tr>
+    <tr><td><code>path.sep</code></td><td><code>"/"</code> or <code>"\\"</code></td><td>this OS's separator</td></tr>
+    <tr><td><code>path.isAbsolute(p)</code></td><td><code>true</code>/<code>false</code></td><td>starts from the root?</td></tr>
+  </table></div>
+
+  <div class="lab" id="parseLab"><div class="lab-head">Lab (new): take a path apart</div><div class="lab-body">
+    <p class="how">Type any macOS/Linux-style path or pick one below, and watch what each method returns. Try the dotfile and the trailing slash.</p>
+    <div class="row"><span class="chip">p =</span><input type="text" id="parseIn" value="/home/me/project/src/app.js" aria-label="Path to take apart"></div>
+    <div class="row" id="parsePresets"></div>
+    <div class="console" id="parseOut" aria-live="polite"></div>
+  </div></div>
+
+  <h4>Three more you’ll meet <span class="newtag">New</span></h4>
+  <div class="tbl-wrap"><table>
+    <tr><th>Method</th><th>Result</th><th>Plain English</th></tr>
+    <tr><td><code>path.relative("/home/me/project", "/home/me/project/src/app.js")</code></td><td><code>"src/app.js"</code></td><td>how to get from the first path to the second</td></tr>
+    <tr><td><code>path.normalize("/a//b/../c/./d.txt")</code></td><td><code>"/a/c/d.txt"</code></td><td>tidy one messy path</td></tr>
+    <tr><td><code>path.format({ dir: "/tmp", name: "report", ext: ".pdf" })</code></td><td><code>"/tmp/report.pdf"</code></td><td>the opposite of <code>parse</code></td></tr>
+    <tr><td><code>path.posix.join(…)</code> / <code>path.win32.join(…)</code></td><td>forward or back slashes</td><td>force one OS’s rules, e.g. URL-style paths on Windows</td></tr>
+  </table></div>
+
+  <h3><code>join</code> vs <code>resolve</code></h3>
+  <div class="cmp"><div><h4><code>path.join</code></h4><p>Glues pieces together in order and tidies. Can return a relative path.</p><pre><code data-lang="js">path.join("a", "/b", "c")
+// "a/b/c"</code></pre></div><div><h4><code>path.resolve</code></h4><p>Works right-to-left until it has an absolute path; a segment starting with <code>/</code> resets it.</p><pre><code data-lang="js">path.resolve("a", "/b", "c")
+// "/b/c"</code></pre></div></div>
+
+  <h3>Why <code>__dirname</code> matters</h3>
+<pre><code data-lang="js">// ❌ Relative to wherever you typed "node" — breaks if run from another folder
+fs.readFileSync("data.json");
+
+// ✅ Relative to this file's own folder — always works
+fs.readFileSync(path.join(__dirname, "data.json"));
+</code></pre>
+  <h3>Don’t let users escape your folder <span class="newtag">New</span></h3>
+  <p>If part of a path comes from a user (a URL, a form, <code>argv</code>), <code>..</code> can walk out of the folder you meant to share, and <code>path.join</code> happily follows it.</p>
+<pre><code data-lang="js">const path = require("node:path");
+const PUBLIC = path.join(__dirname, "public");
+
+function safePath(userInput) {
+  const full = path.resolve(PUBLIC, userInput);   // absolute, with .. applied
+  if (!full.startsWith(PUBLIC + path.sep)) {      // still inside public/ ?
+    throw new Error("Path not allowed");
+  }
+  return full;
+}
+
+safePath("img/cat.png");        // ✅ /home/me/project/public/img/cat.png
+safePath("../../etc/passwd");   // ❌ throws
+</code></pre>
+  <p>This attack is called <b>path traversal</b>. Express’s <code>express.static</code> protects you from it, but you need this check whenever you build paths by hand, as you will with the raw http server in video 3.</p>
+
+  <div class="box trap"><div class="lbl" data-ico="⚠️">Exam traps</div><ul>
+    <li><code>"folder" + "/" + "file"</code> breaks on Windows. Use <code>path.join</code>.</li>
+    <li><code>extname</code> includes the dot: <code>".js"</code>, not <code>"js"</code>.</li>
+    <li>In ES modules there's no <code>__dirname</code>; use <code>import.meta.dirname</code> (Node 20.11+).</li>
+  </ul></div>
+  <div class="quiz" data-quiz="t6"></div>
+</section>
+
+<section class="topic" id="p-mini" data-group="exam" data-num="P1" data-title="Mini project: file-info CLI">
+  <div class="topic-head"><div class="badge">P1</div><div><div class="meta">Practice line</div><h2>Mini project: file-info CLI <span class="newtag">New</span></h2></div></div>
+  <div class="prob"><div class="lvl">process.argv + path · about 15 minutes</div><h4>Describe any path from the terminal</h4>
+  <p>Write <code>fileinfo.js</code>. It takes one path as an argument and prints the file’s name, extension, folder, absolute path, and whether the path you typed was already absolute. With no argument, print a usage line and exit with code 1. It never touches the disk: <code>path</code> only works with text.</p>
+<pre class="out">$ node fileinfo.js ./notes/today.md
+name:      today
+extension: .md
+folder:    ./notes
+absolute:  /home/me/part2/notes/today.md
+was absolute? no</pre>
+  <details><summary>Hint</summary><p>Take the argument with <code>process.argv.slice(2)</code>. <code>path.parse()</code> gives you <code>name</code>, <code>ext</code> and <code>dir</code> in one call; <code>path.resolve()</code> turns it into an absolute path; <code>path.isAbsolute()</code> answers the last line.</p></details>
+  <details><summary>Solution</summary>
+<pre><code data-lang="js"><span class="fname">fileinfo.js</span>const path = require("node:path");
+
+const [input] = process.argv.slice(2);
+
+if (!input) {
+  console.log("Usage: node fileinfo.js &lt;path&gt;");
+  process.exitCode = 1;
+} else {
+  const { name, ext, dir } = path.parse(input);
+  console.log(`name:      ${name}`);
+  console.log(`extension: ${ext || "(none)"}`);
+  console.log(`folder:    ${dir || "."}`);
+  console.log(`absolute:  ${path.resolve(input)}`);
+  console.log(`was absolute? ${path.isAbsolute(input) ? "yes" : "no"}`);
+}
+</code></pre></details>
+  <p><b>Stretch goals:</b> accept several paths at once and print a block for each; add a <code>--json</code> flag with <code>util.parseArgs</code> that prints the result as JSON; switch the file to ES Modules and replace <code>require</code> with <code>import</code>.</p>
+  </div>
+</section>
+
+<section class="topic" id="p-drills" data-group="exam" data-num="P2" data-title="Syntax recall drills">
+  <div class="topic-head"><div class="badge">P2</div><div><div class="meta">Practice line</div><h2>Syntax recall drills</h2></div></div>
+  <p>Each drill hides the key words: type them from memory. <span class="kbd">Enter</span> checks a drill and <span class="kbd">Tab</span> jumps to the next blank. Quote style, spacing and trailing semicolons don’t matter, but capital letters do, just like real code.</p>
+  <div class="row"><span class="qscore" id="blankScore" aria-live="polite"></span><button class="btn" id="blankReset" type="button">Reset all drills</button></div>
+  <div id="blankList"></div>
+</section>
+
+<section class="topic" id="p-bugs" data-group="exam" data-num="P3" data-title="Spot the bug">
+  <div class="topic-head"><div class="badge">P3</div><div><div class="meta">Practice line</div><h2>Spot the bug</h2></div></div>
+  <p>Each snippet has one mistake of the kind that crashes a program or loses marks. Read the symptom, then click the line you think is wrong. When the fix needs two lines, either one counts.</p>
+  <div class="row"><span class="qscore" id="bugScore" aria-live="polite"></span><button class="btn" id="bugReset" type="button">Reset all bugs</button></div>
+  <div id="bugList"></div>
+</section>
+
+<section class="topic" id="p-order" data-group="exam" data-num="P4" data-title="Put the lines in order">
+  <div class="topic-head"><div class="badge">P4</div><div><div class="meta">Practice line</div><h2>Put the lines in order</h2></div></div>
+  <p>Each puzzle shows the lines of a short program shuffled. Tap a line to add it to your answer, tap a placed line to send it back, then press Check.</p>
+  <div class="row"><span class="qscore" id="parScore" aria-live="polite"></span><button class="btn" id="parReset" type="button">Reset all puzzles</button></div>
+  <div id="parList"></div>
+</section>
+
+<section class="topic" id="p-challenge" data-group="exam" data-num="P5" data-title="End-of-video challenge">
+  <div class="topic-head"><div class="badge">P5</div><div><div class="meta">Practice line</div><h2>End-of-video challenge</h2></div></div>
+  <p>Seven questions on modules, process and path, including the new material. Answer without scrolling up, then post your score in the comments.</p>
+  <div class="quiz" data-quiz="v2"></div>
+</section>
+
+<section class="topic" id="p-cheat" data-group="exam" data-num="P6" data-title="Cheat sheet and sources">
+  <div class="topic-head"><div class="badge">P6</div><div><div class="meta">Practice line</div><h2>Cheat sheet</h2></div></div>
+  <p>Everything from this video on one screen. Rows marked New cover the material added for the video.</p>
+  <div class="tbl-wrap"><table>
+    <tr><th>Topic</th><th>Must-know</th></tr>
+    <tr><td>Modules</td><td>CJS: <code>module.exports = {}</code> / <code>require("./x")</code>. ESM: <code>export</code> / <code>import x from "./x.js"</code> + <code>"type":"module"</code>. Never <code>exports = …</code>. Cached after first load.</td></tr>
+    <tr><td>process</td><td><code>process.argv.slice(2)</code> = your args (strings) · <code>process.env.PORT</code> · <code>process.exit(1)</code> · <code>process.cwd()</code></td></tr>
+    <tr><td>path</td><td><code>path.join(__dirname, "a", "b.txt")</code> · <code>basename</code> · <code>dirname</code> · <code>extname</code> (".js") · <code>resolve</code> → absolute</td></tr>
+    <tr><td>Modern modules <span class="newtag">New</span></td><td><code>require("node:fs")</code> · ESM folder: <code>import.meta.dirname</code> · <code>require()</code> of ES modules works from Node 20.19 / 22.12 · <code>await import("./x.js")</code> · modules are cached: top-level code runs once</td></tr>
+    <tr><td>Config and exit <span class="newtag">New</span></td><td><code>node --env-file=.env app.js</code> or <code>process.loadEnvFile()</code> · <code>util.parseArgs({ options })</code> for flags · <code>process.exitCode = 1</code> over <code>process.exit(1)</code> · <code>process.on("SIGINT", …)</code></td></tr>
+    <tr><td>Path safety <span class="newtag">New</span></td><td><code>const full = path.resolve(BASE, input)</code> then check <code>full.startsWith(BASE + path.sep)</code> · <code>path.relative</code> · <code>path.normalize</code> · <code>path.format</code></td></tr>
+  </table></div>
+  <div class="box next-box"><div class="lbl" data-ico="⏭️">Next video</div><p><b>Events</b> (the pattern all of Node is built on), <b>readline</b> for terminal input, <b>fs</b> for reading and writing files, and your first <b>HTTP server</b> with no Express, ending in a small notes API.</p></div>
+  <h3>Sources for the added material</h3>
+  <ul class="src-list">
+    <li><a href="https://r2.nodejs.org/dist/v26.7.0/docs/api/esm.json">Node.js ESM API docs (v26.7.0)</a>: <code>import.meta.dirname</code> added in 20.11 and no longer experimental from 24.0 / 22.16</li>
+    <li><a href="https://besthub.dev/articles/node-js-require-esm-goes-stable-commonjs-and-esm-finally-reconcile-a06907f00c65">Summary of Joyee Cheung’s post: require(esm) is stable</a> in Node 20.19+ and 22.12+</li>
+    <li><a href="https://nodejs.org/es/learn/command-line/how-to-read-environment-variables-from-nodejs">Node.js Learn: how to read environment variables</a>: <code>--env-file</code>, <code>--env-file-if-exists</code>, <code>process.loadEnvFile()</code></li>
+    <li><a href="https://flaviocopes.com/node-builtins/">Flavio Copes: Node.js built-ins that replaced npm packages</a>: stable since 24.10 / 22.21 for the env-file features</li>
+    <li><a href="https://nodejs.org/api/util.html">Node.js docs: util</a> (<code>parseArgs</code>) and <a href="https://nodejs.org/api/path.html">path</a></li>
+  </ul>
+  <p style="color:var(--muted);font-size:15px">Version facts checked on 31 October 2026. Node moves fast: re-check nodejs.org before you publish.</p>
+</section>
+</div></main></div>
+<script>
+const QZ = {
+t1:[
+ {q:"What does this print?",c:'const arr = [1, 2];\narr.push(3);\nconsole.log(arr.length);',o:["2","3","TypeError: Assignment to constant variable","undefined"],a:1,e:"const stops reassigning the variable, but you can still change the array inside it. push adds 3, so length is 3."},
+ {q:"users = [{id:1},{id:2}]. What does users.find(u => u.id === 5) return?",o:["-1","null","undefined","an empty array []"],a:2,e:"find returns the first match or undefined. findIndex is the one that returns -1."},
+ {q:"What is the result of \"5\" + 3?",o:["8","\"53\"","NaN","TypeError"],a:1,e:"+ with a string glues text together. That's why you must Number() values from req.params, req.query and process.argv."},
+ {q:"Which correctly gets name and email out of req.body?",o:["const [name, email] = req.body;","const { name, email } = req.body;","const name, email = req.body;","const { req.body.name, req.body.email };"],a:1,e:"Objects destructure with curly braces. Square brackets are for arrays."},
+ {q:"Where can you use await?",o:["Anywhere in any file","Only inside an async function (or top level of an ES module)","Only inside callbacks","Only with setTimeout"],a:1,e:"await must be inside an async function. ES modules also allow top-level await."},
+ {q:"What does this print?",c:'console.log("A");\nsetTimeout(() => console.log("B"), 0);\nconsole.log("C");',o:["A B C","A C B","B A C","C A B"],a:1,e:"All synchronous code runs first. The setTimeout callback waits until the current code finishes, even with 0 ms."}
+],
+t2:[
+ {q:"A user is logged in but tries to delete someone else's post. Best status code?",o:["401 Unauthorized","403 Forbidden","404 Not Found","500 Internal Server Error"],a:1,e:"401 = we don't know who you are (not logged in). 403 = we know who you are, and you're not allowed."},
+ {q:"In http://localhost:3000/users/42?sort=name, which part is the query string?",o:["/users/42","localhost:3000","?sort=name","42"],a:2,e:"Everything after ? is the query string. In Express you read it from req.query."},
+ {q:"\"HTTP is stateless\" means:",o:["The server can't store data in a database","Each request is independent; the server doesn't remember previous requests by default","Responses can't have a status","Only GET requests are allowed"],a:1,e:"Stateless means every request must carry everything needed (like an auth token). Databases still store data."},
+ {q:"Which status code means \"created successfully\"?",o:["200","201","204","302"],a:1,e:"201 Created is the standard response for a successful POST that made a new resource."},
+ {q:"Why must database passwords live on the backend and not the frontend?",o:["The frontend is too slow","Anything sent to the user's device can be read by the user","Browsers can't store strings","HTTP forbids it"],a:1,e:"All frontend code is downloaded to the user's browser, where anyone can open DevTools and read it."}
+],
+t3:[
+ {q:"Node.js is best described as:",o:["A programming language","A JavaScript framework like React","A runtime that runs JavaScript outside the browser","A database"],a:2,e:"Node = V8 engine + system APIs (fs, http…). JavaScript is the language; Express is the framework."},
+ {q:"Which of these does NOT exist in Node?",o:["console.log","setTimeout","document.getElementById","process.argv"],a:2,e:"document is the browser's web page. Node has no page, so no DOM."},
+ {q:"Which command creates a package.json with default answers?",o:["npm start","npm init -y","node init","npm create package"],a:1,e:"npm init -y skips all the questions and writes a default package.json."},
+ {q:"Why shouldn't you commit node_modules to Git?",o:["It contains your secrets","It's huge and can be recreated exactly with npm install from package.json + package-lock.json","Git can't store JavaScript","It makes Node slower"],a:1,e:"node_modules is regenerated from package.json and the lockfile, so it goes in .gitignore."},
+ {q:"Node is \"non-blocking\" means:",o:["It runs on many threads at once","While waiting for I/O (files, DB, network), it keeps handling other work and runs your callback later","It never crashes","It blocks pop-ups"],a:1,e:"Slow I/O is handed off; the single JS thread moves on to the next task and comes back when the result is ready."}
+],
+t4:[
+ {q:"math.js contains: exports = { add }. In app.js, require(\"./math\").add is:",o:["the add function","undefined","an error","null"],a:1,e:"Reassigning exports only redirects the local shortcut. Node returns module.exports, which is still the original empty object."},
+ {q:"How do you import a local file utils.js in CommonJS?",o:['require("utils")','require("./utils")','import "./utils"','include("utils.js")'],a:1,e:"Local files need ./ or ../. Without it, Node looks in core modules and node_modules."},
+ {q:"Which makes Node treat .js files as ES modules?",o:['"main": "module" in package.json','"type": "module" in package.json','Writing "use esm" at the top','Installing the esm package from npm'],a:1,e:'"type": "module" in package.json (or using the .mjs extension).'},
+ {q:"A module file has console.log(\"loaded\") at the top. Three other files require it. How many times is \"loaded\" printed?",o:["0","1","3","4"],a:1,e:"Modules are cached after the first require. Later requires get the cached exports without re-running the file."},
+ {q:"Correct ES module import of a default export and a named export `sub`?",o:['import { multiply, sub } from "./math.js"','import multiply, { sub } from "./math.js"','const { multiply, sub } = import("./math.js")','import multiply, sub from "./math.js"'],a:1,e:"Default import comes first without braces; named imports go inside { }."}
+],
+t5:[
+ {q:"Running node app.js hello world. What is process.argv[2]?",o:['"node"','"app.js"','"hello"','"world"'],a:2,e:"[0] is the node path, [1] the script path, [2] the first of your arguments."},
+ {q:"node add.js 2 3 with code console.log(process.argv[2] + process.argv[3]) prints:",o:["5","23","NaN","undefined"],a:1,e:"argv values are strings, so + concatenates \"2\" and \"3\". Use Number() first."},
+ {q:"What does process.argv.slice(2) give for node a.js x y?",o:['["x","y"]','["a.js","x","y"]','["node","a.js"]','"x y"'],a:0,e:"slice(2) returns a new array starting at index 2: just your arguments."},
+ {q:"Which gives a config value like the port from the environment?",o:["process.argv.PORT","process.env.PORT","process.config.PORT","require('env').PORT"],a:1,e:"Environment variables live in process.env. A common pattern: const PORT = process.env.PORT || 3000."},
+ {q:"process.exit(1) means:",o:["Exit successfully","Exit with an error code","Restart the process","Pause for 1 second"],a:1,e:"0 means success; any non-zero code signals failure to whatever ran the program."}
+],
+t6:[
+ {q:'path.join("/a/b", "../c", "d.txt") returns:',o:['"/a/b/../c/d.txt"','"/a/c/d.txt"','"/c/d.txt"','"a/c/d.txt"'],a:1,e:".. goes up one folder from /a/b to /a, then into c."},
+ {q:'path.extname("report.final.pdf") returns:',o:['"pdf"','".pdf"','".final.pdf"','"report"'],a:1,e:"extname returns the last extension, including the dot."},
+ {q:"Why use path.join instead of string concatenation?",o:["It's faster","It uses the correct separator for the OS and tidies extra slashes and ..","It checks the file exists","It reads the file"],a:1,e:"Windows uses backslashes. path.join handles separators and normalises the path. It never touches the disk."},
+ {q:"__dirname is:",o:["The folder you ran node from","The absolute path of the folder containing the current file","The project root, always","The user's home folder"],a:1,e:"__dirname is the current file's folder. process.cwd() is where you ran node from."},
+ {q:'path.basename("/home/me/app.js", ".js") returns:',o:['"app.js"','"app"','"/home/me"','".js"'],a:1,e:"The second argument removes that extension from the result."}
+],
+t7:[
+ {q:"What does this print?",c:'const E = require("events");\nconst e = new E();\ne.emit("hi");\ne.on("hi", () => console.log("hello"));',o:["hello","nothing","hello hello","Error"],a:1,e:"The listener was registered after the emit, so the event had no listeners at that moment and is lost."},
+ {q:"How do you send data with an event?",o:['e.emit("order", data)','e.on("order", data)','e.emit("order").send(data)','e.data("order", data)'],a:0,e:"Extra arguments to emit are passed to each listener: e.on(\"order\", (data) => …)."},
+ {q:"A listener added with once() and the event is emitted 3 times. How many times does it run?",o:["0","1","3","It throws"],a:1,e:"once listeners remove themselves after their first run."},
+ {q:"What does this print?",c:'e.on("x", () => console.log("A"));\ne.emit("x");\nconsole.log("B");',o:["B then A","A then B","Only A","Only B"],a:1,e:"emit is synchronous: all listeners finish before the next line runs."},
+ {q:"If an emitter emits \"error\" with no error listener:",o:["Nothing happens","Node throws and the process crashes","It's logged as a warning","It is retried"],a:1,e:"\"error\" is special. Always attach an error listener on emitters that might fail."}
+],
+t8:[
+ {q:"Your readline program asks a question, prints the answer, but never exits. Most likely cause?",o:["Wrong prompt text","rl.close() was never called","process.argv is empty","Missing \"utf8\""],a:1,e:"The interface keeps listening to stdin until you close it."},
+ {q:"What does createInterface need to read keyboard input and show prompts?",o:["{ input: process.stdin, output: process.stdout }","{ in: keyboard, out: screen }","{ input: fs, output: console }","Nothing"],a:0,e:"input is where answers come from; output is where prompts are written."},
+ {q:"rl.question(\"Age? \", (age) => console.log(age + 1)). User types 20. Output?",o:["21","201","NaN","20"],a:1,e:"Answers are strings, so \"20\" + 1 is \"201\". Use Number(age) + 1."},
+ {q:"How do you ask a second question only after the first is answered (callback style)?",o:["Call rl.question twice on consecutive lines","Put the second rl.question inside the first one's callback","Use setTimeout","Call rl.pause() between them"],a:1,e:"The answer only exists inside the callback, so the next question goes there. Or use readline/promises with await."}
+],
+t9:[
+ {q:"notes.txt contains \"A\". You run fs.writeFileSync(file, \"B\"). It now contains:",o:["A","AB","B","BA"],a:2,e:"writeFile replaces the whole file. appendFile adds to the end."},
+ {q:"fs.readFile(file, (err, data) => console.log(data)) without \"utf8\" prints:",o:["The text","A Buffer like <Buffer 48 69>","undefined","An error"],a:1,e:"Without an encoding, Node gives raw bytes (a Buffer). Pass \"utf8\" or call data.toString()."},
+ {q:"Reading a file that doesn't exist gives which error code?",o:["EACCES","ENOENT","EISDIR","404"],a:1,e:"ENOENT = Error NO ENTry: no such file or directory."},
+ {q:"appendFile on a file that doesn't exist yet:",o:["Throws ENOENT","Creates the file and writes the text","Does nothing","Asks for confirmation"],a:1,e:"Both writeFile and appendFile create the file if it's missing (as long as the folder exists)."},
+ {q:"In fs callbacks, the first argument is:",o:["The data","The error (or null if it worked)","The file name","The encoding"],a:1,e:"Node uses \"error-first\" callbacks: (err, data). Check err first and return."},
+ {q:"Which is the blocking (synchronous) version?",o:["fs.readFile","fs.readFileSync","fs.promises.readFile","fs.createReadStream"],a:1,e:"Methods ending in Sync block until done and return the result directly (use try/catch)."}
+],
+t10:[
+ {q:"What happens if your http handler never calls res.end()?",o:["Node sends an empty 200","The client waits until it times out","The server crashes","Express sends a 404"],a:1,e:"The response is never finished, so the browser keeps waiting."},
+ {q:"res.end({ ok: true }) in a raw http server:",o:["Sends JSON","Throws a TypeError; it needs a string or Buffer","Sends \"[object Object]\"","Sends nothing"],a:1,e:"res.end needs a string or Buffer. Use res.end(JSON.stringify({ ok: true }))."},
+ {q:"A request to /users?page=2. What is req.url in the http module?",o:['"/users"','"/users?page=2"','"page=2"','"http://localhost/users"'],a:1,e:"req.url is the path plus the query string, so comparisons with === \"/users\" fail."},
+ {q:"Which sets status 404 and the Content-Type header in one call?",o:['res.status(404)','res.writeHead(404, { "Content-Type": "text/plain" })','res.send(404)','res.header(404)'],a:1,e:"writeHead(status, headers) is the raw http method. res.status is an Express method."},
+ {q:"How does a raw http server read a POST body?",o:["req.body","Collect chunks with req.on(\"data\") and use them on req.on(\"end\")","req.read()","It can't"],a:1,e:"The body arrives as a stream. Express's express.json() does this for you and fills req.body."}
+],
+t11:[
+ {q:"Route app.get(\"/users/:id\"). Request GET /users/7?x=1. What is req.params.id?",o:["7 (number)",'"7" (string)','"7?x=1"',"undefined"],a:1,e:"Params are always strings. The query goes into req.query, not params."},
+ {q:"req.body is undefined in your POST route. Most likely fix?",o:["Use req.query instead","Add app.use(express.json()) before the routes","Restart the server","Use app.post twice"],a:1,e:"Express doesn't parse JSON bodies unless you add the express.json() middleware, before your routes."},
+ {q:"Routes registered: (1) GET /users/:id  (2) GET /users/new. Request GET /users/new runs:",o:["Route 1, with id = \"new\"","Route 2","Both","Neither (404)"],a:0,e:"Express picks the first match in registration order. Put specific routes above parameter routes."},
+ {q:"Which correctly sends a 404 with a JSON body?",o:['res.json(404, { error: "x" })','res.status(404).json({ error: "x" })','res.send(404).json({ error: "x" })','res.status = 404; res.json()'],a:1,e:"res.status() sets the code and returns res, so you chain .json() or .send()."},
+ {q:"GET /search?q=node&limit=5. How do you read limit?",o:["req.params.limit","req.query.limit","req.body.limit","req.limit"],a:1,e:"Query string values are in req.query (as strings)."},
+ {q:"\"Cannot set headers after they are sent\" usually means:",o:["express.json is missing","You sent two responses for one request (often a missing return)","The port is taken","The route is misspelled"],a:1,e:"After res.json in an if-block, code continues unless you return, so a second response is attempted."}
+],
+t12:[
+ {q:"Most RESTful route to delete book 7?",o:["POST /books/7/delete","GET /deleteBook?id=7","DELETE /books/7","DELETE /book/delete/7"],a:2,e:"The HTTP method is the verb; the URL names the resource with a plural noun."},
+ {q:"Existing {id:1, name:\"A\", age:20}. PUT /users/1 with {name:\"B\"} should give:",o:['{id:1, name:"B", age:20}','{id:1, name:"B"}','{name:"B"}','No change'],a:1,e:"PUT replaces the whole resource, so unspecified fields disappear. PATCH would keep age."},
+ {q:"Which method is NOT idempotent?",o:["GET","PUT","DELETE","POST"],a:3,e:"Sending the same POST twice creates two resources. The others give the same end state when repeated."},
+ {q:"Best status after successfully deleting with nothing to return?",o:["200","201","204","404"],a:2,e:"204 No Content: success, empty body."},
+ {q:"Best route to get the posts of user 3?",o:["GET /getUserPosts/3","GET /users/3/posts","POST /users/posts?id=3","GET /posts/user=3"],a:1,e:"Nested resources express relationships: /users/3/posts."},
+ {q:"app.delete(\"/books/:id\", (req, res) => { const i = books.findIndex(b => b.id === Number(req.params.id)); books.splice(i, 1); res.status(204).send(); }); Which step of the recipe is missing?",o:["① Read the input","③ Find the item","④ Not found → return 404","⑥ Respond with the right status"],a:2,e:"If no book matches, findIndex returns -1 and splice(-1, 1) silently deletes the LAST book. Check for -1 and return 404 first."}
+],
+t13:[
+ {q:"A middleware neither calls next() nor sends a response. The request:",o:["Moves to the next route anyway","Hangs (the client waits)","Gets an automatic 404","Crashes the server"],a:1,e:"Express only continues when you call next(). Otherwise the request is stuck."},
+ {q:"How does Express recognise error-handling middleware?",o:["Its name contains \"error\"","It has exactly four parameters (err, req, res, next)","It's registered first","It uses app.error()"],a:1,e:"The four-parameter signature is what makes it an error handler. Register it last."},
+ {q:"What does next(err) do?",o:["Calls the next normal middleware","Skips to the error-handling middleware","Ends the request with 500 directly","Restarts the route"],a:1,e:"Passing anything to next() means \"an error happened\": Express jumps to error handlers."},
+ {q:"app.get(\"/admin\", auth, handler). If auth sends res.status(401), handler:",o:["Runs after auth","Never runs","Runs first","Runs twice"],a:1,e:"Responding ends the chain. handler only runs if auth calls next()."},
+ {q:"Middleware order: app.get(\"/\", ...sends response...) is registered, then app.use(logger). Does logger run for GET /?",o:["Yes","No: the route already responded and never called next()","Only if logger is async","Only in production"],a:1,e:"Middleware runs in registration order. The route ended the chain before logger was reached."},
+ {q:"Which built-in middleware parses HTML form submissions?",o:["express.json()","express.urlencoded({ extended: true })","express.static()","express.form()"],a:1,e:"express.urlencoded parses application/x-www-form-urlencoded bodies (normal HTML forms)."}
+],
+t14:[
+ {q:"router.get(\"/:id\") in a router mounted with app.use(\"/api/users\", router) matches:",o:["/:id","/api/:id","/api/users/:id","/users/:id"],a:2,e:"Final path = mount prefix + router path."},
+ {q:"Router.use() requires a middleware function but got a Object. Likely cause?",o:["Missing express.json()","The router file doesn't do module.exports = router","Wrong HTTP method","Port in use"],a:1,e:"Without the export, require gives an empty object {} instead of the router."},
+ {q:"router.use(auth) inside a router mounted at /admin protects:",o:["Every route in the whole app","Only routes in that router (under /admin)","Only GET routes","Nothing until restart"],a:1,e:"Router-level middleware only applies to that router's routes."},
+ {q:"Which creates a router?",o:["express.Router()","new express()","app.router()","require(\"router\")"],a:0,e:"const router = express.Router(); then router.get/post/… and module.exports = router."}
+],
+t15:[
+ {q:"With app.use(express.static(\"public\")), the file public/img/cat.png is at:",o:["/public/img/cat.png","/img/cat.png","/static/img/cat.png","/cat.png"],a:1,e:"The folder name is not part of the URL."},
+ {q:"With app.use(\"/assets\", express.static(\"public\")), public/app.js is at:",o:["/app.js","/assets/app.js","/public/app.js","/assets/public/app.js"],a:1,e:"The first argument is a URL prefix; the folder name is still not included."},
+ {q:"Why prefer express.static(path.join(__dirname, \"public\"))?",o:["It's faster","It works no matter which folder you run node from","It allows uploads","It's required in Express 5"],a:1,e:"A relative \"public\" resolves from process.cwd(); __dirname anchors it to the file's folder."},
+ {q:"res.sendFile(\"views/help.html\") gives an error. Why?",o:["sendFile needs an absolute path","HTML isn't allowed","Wrong status code","Missing express.json()"],a:0,e:"Use res.sendFile(path.join(__dirname, \"views\", \"help.html\"))."}
+],
+t16:[
+ {q:"In MVC, which layer should call res.status(404).json(...)?",o:["Service","Model","Controller","Route file"],a:2,e:"Only controllers deal with req and res. Services return data or throw; controllers turn that into HTTP."},
+ {q:"Where does a business rule like \"email must be unique\" belong?",o:["Route","Service","Static folder","package.json"],a:1,e:"Business rules live in services so they can be reused and tested without HTTP."},
+ {q:"What does a route file contain?",o:["Database queries","The mapping of method + path → middleware + controller","HTML templates","Environment variables"],a:1,e:"Routes are just a map. No logic."},
+ {q:"In an Express JSON API, what plays the role of the \"View\"?",o:["The service","The JSON response sent to the client","The router","The database"],a:1,e:"APIs don't render HTML; the JSON output is the presentation layer."},
+ {q:"Main benefit of separating controllers and services?",o:["Faster code execution","Separation of concerns: easier to read, test, reuse and change","Fewer files","Required by Node"],a:1,e:"Each layer has one job. Swapping an array for Prisma only touches the service/model."}
+],
+t17:[
+ {q:"What is an ORM?",o:["A database engine","A tool that lets you work with database tables through objects/functions in your language instead of raw SQL","A type of HTTP request","A Node core module"],a:1,e:"Object-Relational Mapper: maps tables to objects. Prisma is one."},
+ {q:"npx prisma init creates:",o:["node_modules","prisma/schema.prisma and .env","A migrations folder with SQL","A running database"],a:1,e:"init scaffolds the schema file and a .env with a DATABASE_URL placeholder."},
+ {q:"Which package is the CLI (dev dependency)?",o:["@prisma/client","prisma","prisma-cli","node-prisma"],a:1,e:"npm i -D prisma for the CLI; npm i @prisma/client for runtime use in your code."},
+ {q:"In postgresql://admin:pw@localhost:5432/shop, the database name is:",o:["admin","pw","localhost","shop"],a:3,e:"Format: protocol://user:password@host:port/database."},
+ {q:"Which tool opens a GUI to browse your data?",o:["npx prisma studio","npx prisma view","npx prisma open","npm run db"],a:0,e:"Prisma Studio runs in the browser and shows your tables like spreadsheets."}
+],
+t18:[
+ {q:"What does the ? in `name String?` mean?",o:["Unique","Optional (nullable)","A list","Auto-generated"],a:1,e:"Fields are required by default; ? makes them optional."},
+ {q:"Which makes an auto-incrementing integer primary key?",o:["id Int @unique","id Int @id @default(autoincrement())","id Int @default(1)","id @id Int++"],a:1,e:"@id marks the primary key; @default(autoincrement()) generates 1, 2, 3…"},
+ {q:"In a one-to-many User→Post relation, which field is a real database column?",o:["User.posts","Post.author","Post.authorId","All three"],a:2,e:"authorId is the stored foreign key. posts and author are virtual relation fields Prisma uses for joins."},
+ {q:"@@unique([firstName, lastName]) means:",o:["Each name is unique separately","The combination of first and last name must be unique","Both fields are optional","It creates two indexes"],a:1,e:"@@ is model-level: the pair together must be unique."},
+ {q:"Which attribute auto-updates a timestamp whenever the row changes?",o:["@default(now())","@updatedAt","@timestamp","@default(update())"],a:1,e:"@default(now()) sets the time once on create; @updatedAt refreshes on every update."},
+ {q:"Which field makes a relation one-to-one rather than one-to-many?",o:["Adding ? to the foreign key","Adding @unique to the foreign key","Using Int instead of String","Adding @id to both"],a:1,e:"If the foreign key is unique, each user can be referenced by at most one profile."},
+ {q:"Post has: author User @relation(fields: [authorId], references: [id], onDelete: Cascade). A user with 3 posts is deleted. What happens?",o:["The delete is blocked","The user and all 3 posts are deleted","The posts stay, with authorId set to null","Only the posts are deleted"],a:1,e:"Cascade passes the delete down to related rows. Restrict would block it; SetNull would keep the posts with a null authorId."}
+],
+t19:[
+ {q:"What does npx prisma migrate dev --name init do?",o:["Only formats the schema","Creates a SQL migration file, applies it to the DB, and regenerates Prisma Client","Deletes the database","Deploys to production"],a:1,e:"migrate dev = generate the migration SQL + apply it + run prisma generate."},
+ {q:"Which command applies pending migrations in production without creating new ones?",o:["migrate dev","migrate deploy","db push","migrate reset"],a:1,e:"migrate deploy is the safe, non-interactive command for production."},
+ {q:"Which command wipes all data and reapplies every migration?",o:["migrate status","migrate reset","generate","format"],a:1,e:"migrate reset drops the database. Development only."},
+ {q:"Difference between db push and migrate dev?",o:["No difference","db push syncs the DB without creating migration files (no history); migrate dev creates versioned files","db push is for production","migrate dev doesn't touch the DB"],a:1,e:"db push is for quick prototyping; migrate dev keeps a history you can replay elsewhere."},
+ {q:"You add `age Int` (required) to a table that already has rows. migrate dev complains. Fix?",o:["Delete package.json","Make it `age Int?` or give it @default(0)","Run npm install","Rename the model"],a:1,e:"Existing rows have no age value, so the field must be optional or have a default."},
+ {q:"Where are migration files stored?",o:["node_modules/.prisma","prisma/migrations/<timestamp>_<name>/migration.sql",".env","src/models"],a:1,e:"Each migration gets a timestamped folder containing migration.sql. Commit these to Git."}
+],
+extra:[
+ {t:"Express routing",q:"What does this route return for GET /api/items/3 when items = [{id:3, n:\"pen\"}]?",c:'app.get("/api/items/:id", (req, res) => {\n  const item = items.find(i => i.id === req.params.id);\n  if (!item) return res.status(404).json({ error: "nope" });\n  res.json(item);\n});',o:['{"id":3,"n":"pen"}','404 {"error":"nope"}',"500 error","It hangs"],a:1,e:"req.params.id is the string \"3\", and 3 === \"3\" is false. Use Number(req.params.id)."},
+ {t:"Middleware",q:"What is logged for GET /x?",c:'app.use((req, res, next) => { console.log(1); next(); console.log(3); });\napp.get("/x", (req, res) => { console.log(2); res.send("ok"); });',o:["1 2 3","1 3 2","1 2","2 1 3"],a:0,e:"next() runs the following handler synchronously, then control returns and the line after next() runs."},
+ {t:"fs",q:"What is printed?",c:'fs.writeFileSync("a.txt", "x");\nfs.appendFileSync("a.txt", "y");\nfs.writeFileSync("a.txt", "z");\nconsole.log(fs.readFileSync("a.txt", "utf8"));',o:["xyz","z","xy","yz"],a:1,e:"The last writeFileSync replaces everything with \"z\"."},
+ {t:"Events",q:"What does this print?",c:'e.on("go", n => console.log("A" + n));\ne.once("go", n => console.log("B" + n));\ne.emit("go", 1);\ne.emit("go", 2);',o:["A1 B1 A2 B2","A1 B1 A2","B1 A1 A2","A1 A2 B1"],a:1,e:"Listeners run in registration order. The once listener is removed after the first emit."},
+ {t:"Modules",q:"counter.js: let c = 0; module.exports = () => ++c;  Two files each require it and call it once. Second call returns:",o:["1","2","0","undefined"],a:1,e:"Both files get the same cached module, sharing the same c."},
+ {t:"REST",q:"An API endpoint is POST /api/orders. It succeeds. Which response is most correct?",o:["200 with no body","201 with the created order","204","302 redirect"],a:1,e:"Creating returns 201 Created, usually with the new resource in the body."},
+ {t:"Router",q:"app.use(\"/v1\", apiRouter); inside apiRouter: router.use(\"/books\", booksRouter); inside booksRouter: router.get(\"/:id\"). Full path?",o:["/books/:id","/v1/:id","/v1/books/:id","/:id"],a:2,e:"Prefixes stack: /v1 + /books + /:id."},
+ {t:"process",q:"node app.js --name=Asha. What is process.argv.length?",o:["1","2","3","4"],a:2,e:"[node path, script path, \"--name=Asha\"]: three items."},
+ {t:"Prisma model",q:"Model `model BlogPost {…}`. In Prisma Client you access it as:",o:["prisma.BlogPost","prisma.blogPost","prisma.blogposts","prisma.blog_post"],a:1,e:"Model names become lower camelCase properties on the client."},
+ {t:"http",q:"Which line has a bug?",c:'1 http.createServer((req, res) => {\n2   res.writeHead(200, { "Content-Type": "application/json" });\n3   res.end({ ok: true });\n4 }).listen(3000);',o:["Line 1","Line 2","Line 3","Line 4"],a:2,e:"res.end needs a string: res.end(JSON.stringify({ ok: true }))."},
+ {t:"Static files",q:"public/index.html exists and app.use(express.static(\"public\")) is registered before app.get(\"/\", …). GET / serves:",o:["The app.get route","public/index.html","404","Both"],a:1,e:"Static middleware runs first, finds index.html and responds; the route is never reached."},
+ {t:"JavaScript",q:"What does [3, 8, 1].filter(n => n > 2).map(n => n * 10) return?",o:["[30, 80]","[30, 80, 10]","[8]","80"],a:0,e:"filter keeps 3 and 8, map multiplies each by 10."}
+]};
+const TOPIC_NAMES = {t1:"JavaScript",t2:"Backend",t3:"Node.js",t4:"Modules",t5:"process",t6:"path",t7:"Events",t8:"readline",t9:"fs",t10:"http",t11:"Express routing",t12:"REST",t13:"Middleware",t14:"Router",t15:"Static files",t16:"MVC",t17:"Prisma intro",t18:"Prisma model",t19:"Prisma migrate"};
+</script>
+<script>
+QZ.v2 = [
+ {q:"In an ES module on modern Node, how do you get the current file's folder?",o:["__dirname","import.meta.dirname","process.cwd()","require.main.dirname"],a:1,e:"__dirname only exists in CommonJS. ES modules use import.meta.dirname (or derive it from import.meta.url)."},
+ {q:'Why write require("node:fs") instead of require("fs")?',o:["It's faster","It shows it's a built-in core module, never an npm package","It turns on ES modules","fs doesn't work without it"],a:1,e:"Both load the same module; the prefix makes the source unambiguous. A few newer modules, like node:test, require it."},
+ {q:'node fileinfo.js report.final.pdf. What is path.parse(process.argv[2]).name?',o:['"report"','"report.final"','"report.final.pdf"','".pdf"'],a:1,e:"ext is only the last extension (.pdf); name is the base without it."},
+ {q:"Which loads a .env file into process.env without installing anything?",o:['require("dotenv").config()',"process.loadEnvFile()","process.env.load()","path.env()"],a:1,e:"process.loadEnvFile() (or the --env-file flag) is built in and stable from Node 24.10 / 22.21."},
+ {q:"Difference between process.exit(1) and process.exitCode = 1?",o:["None","exit(1) stops immediately; exitCode lets pending work finish, then exits","exitCode restarts the program","exit(1) means success"],a:1,e:"Setting exitCode is gentler: queued writes and logs still complete."},
+ {q:'safePath() resolves input inside PUBLIC and checks it still starts with PUBLIC. Which input does it reject?',o:['"img/cat.png"','"css/site.css"','"../../etc/passwd"','"index.html"'],a:2,e:"The .. segments walk out of the public folder, so the resolved path no longer starts with PUBLIC."},
+ {q:'path.relative("/a/b", "/a/b/c/d.txt") returns:',o:['"c/d.txt"','"/a/b/c/d.txt"','"../c/d.txt"','"d.txt"'],a:0,e:"relative tells you how to get from the first path to the second."}
+];
+</script>
+<script>
+(function(){
+"use strict";
+const $ = (s, r=document) => r.querySelector(s);
+const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
+const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+
+/* ---------------- syntax highlighting ---------------- */
+const KW = "const|let|var|function|return|if|else|for|of|in|while|new|class|extends|async|await|try|catch|finally|throw|require|module|exports|import|from|export|default|true|false|null|undefined|this|typeof|switch|case|break|super|constructor";
+const RE_JS = new RegExp("(\\/\\/[^\\n]*|\\/\\*[\\s\\S]*?\\*\\/)|(`(?:\\\\[\\s\\S]|[^`\\\\])*`|\"(?:\\\\.|[^\"\\\\\\n])*\"|'(?:\\\\.|[^'\\\\\\n])*')|\\b("+KW+")\\b|\\b(\\d+(?:\\.\\d+)?)\\b|([A-Za-z_$][\\w$]*)(?=\\()","g");
+const RE_SH = /(#[^\n]*)|("(?:\\.|[^"\\\n])*"|'[^'\n]*')|\b(npm|npx|node|curl|prisma)\b/g;
+const RE_PR = /(\/\/[^\n]*)|("(?:\\.|[^"\\\n])*")|\b(model|enum|generator|datasource)\b|(@@?\w+(?:\([^)\n]*\))?)|\b(String|Int|Float|Boolean|DateTime|Json|Decimal|BigInt|Bytes)\b/g;
+function hl(src, lang){
+  if(lang === "out") return esc(src);
+  let re, map;
+  if(lang === "sh"){ re = RE_SH; map = ["c","s","k"]; }
+  else if(lang === "prisma"){ re = RE_PR; map = ["c","s","k","n","f"]; }
+  else { re = RE_JS; map = ["c","s","k","n","f"]; }
+  re.lastIndex = 0;
+  let out = "", last = 0, m;
+  while((m = re.exec(src))){
+    out += esc(src.slice(last, m.index));
+    let cls = "";
+    for(let i=1;i<m.length;i++){ if(m[i] !== undefined){ cls = map[i-1]; break; } }
+    out += `<span class="tk-${cls}">${esc(m[0])}</span>`;
+    last = re.lastIndex;
+    if(m[0].length === 0) re.lastIndex++;
+  }
+  return out + esc(src.slice(last));
+}
+function hlEl(code){
+  const lang = code.dataset.lang || "js";
+  const fname = code.querySelector(".fname");
+  if(fname) fname.remove();
+  code.innerHTML = hl(code.textContent, lang);
+  if(fname) code.prepend(fname);
+}
+$$("code[data-lang]").forEach(hlEl);
+
+/* copy buttons on substantial code blocks */
+$$("pre").forEach(pre => {
+  const code = pre.querySelector("code");
+  if(!code || pre.closest(".quiz") || pre.closest(".lab")) return;
+  if(code.textContent.split("\n").length < 4) return;
+  const b = document.createElement("button");
+  b.className = "copy"; b.type = "button"; b.textContent = "Copy";
+  b.addEventListener("click", () => {
+    const clone = code.cloneNode(true); const f = clone.querySelector(".fname"); if(f) f.remove();
+    const text = clone.textContent;
+    const done = () => { b.textContent = "Copied"; setTimeout(() => b.textContent = "Copy", 1400); };
+    if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(text).then(done, () => { b.textContent = "Select and copy"; }); }
+    else b.textContent = "Select and copy";
+  });
+  pre.appendChild(b);
+});
+
+/* ---------------- theme ---------------- */
+const root = document.documentElement;
+const savedTheme = store.get("bx-theme", null);
+if(savedTheme) root.setAttribute("data-theme", savedTheme);
+$("#themeBtn").addEventListener("click", () => {
+  const cur = root.getAttribute("data-theme") || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  const next = cur === "dark" ? "light" : "dark";
+  root.setAttribute("data-theme", next); store.set("bx-theme", next);
+});
+
+
+/* ---------------- navigation + progress (video subset) ---------------- */
+const GROUPS = [["found","Foundations"],["node","Node core modules"],["exam","Practice"]];
+const sections = $$("section.topic");
+let done = new Set(store.get("yt-v2-done", []));
+const nav = $("#navLines");
+GROUPS.forEach(([g, name]) => {
+  const secs = sections.filter(s => s.dataset.group === g);
+  if(!secs.length) return;
+  const wrap = document.createElement("div");
+  wrap.className = "line-group"; wrap.dataset.group = g;
+  wrap.innerHTML = `<h4>${name}</h4><ul class="stations">${secs.map(s => `<li><a href="#${s.id}" data-id="${s.id}"><span class="dot" aria-hidden="true"></span><span class="num">${s.dataset.num}</span><span>${esc(s.dataset.title)}</span></a></li>`).join("")}</ul>`;
+  nav.appendChild(wrap);
+});
+const studyIds = sections.filter(s => /^t\d+$/.test(s.id)).map(s => s.id);
+function paintProgress(){
+  $$("#navLines a").forEach(a => {
+    const on = done.has(a.dataset.id);
+    a.classList.toggle("done", on);
+    a.setAttribute("aria-label", `${a.textContent.trim()}${on ? " (understood)" : ""}`);
+  });
+  const n = studyIds.filter(id => done.has(id)).length;
+  $("#progTxt").textContent = `${n} of ${studyIds.length} stops understood`;
+  $("#progBar").style.width = (n / studyIds.length * 100) + "%";
+  $$("#mapDots circle").forEach(c => c.setAttribute("fill", done.has(c.dataset.id) ? c.dataset.col : "var(--surface)"));
+  $$(".done-btn").forEach(b => {
+    const on = done.has(b.dataset.id);
+    b.classList.toggle("on", on);
+    b.setAttribute("aria-pressed", on);
+    b.textContent = on ? "✓ Understood" : "Mark as understood";
+  });
+}
+studyIds.forEach(id => {
+  const sec = document.getElementById(id);
+  const row = document.createElement("div"); row.className = "done-row";
+  row.innerHTML = `<button class="done-btn" data-id="${id}" aria-pressed="false">Mark as understood</button>`;
+  sec.appendChild(row);
+});
+document.addEventListener("click", e => {
+  const b = e.target.closest(".done-btn"); if(!b) return;
+  const id = b.dataset.id;
+  done.has(id) ? done.delete(id) : done.add(id);
+  store.set("yt-v2-done", [...done]); paintProgress();
+});
+paintProgress();
+const links = new Map($$("#navLines a").map(a => [a.dataset.id, a]));
+if("IntersectionObserver" in window){
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(en => {
+      if(en.isIntersecting){
+        links.forEach(l => l.classList.remove("active"));
+        const l = links.get(en.target.id); if(l) l.classList.add("active");
+      }
+    });
+  }, {rootMargin:"-30% 0px -60% 0px"});
+  sections.forEach(s => io.observe(s));
+}
+
+/* mobile menu */
+const rail = $("#rail"), menuBtn = $("#menuBtn");
+const setMenu = open => { rail.classList.toggle("open", open); menuBtn.setAttribute("aria-expanded", open); };
+menuBtn.addEventListener("click", () => setMenu(!rail.classList.contains("open")));
+rail.addEventListener("click", e => { if(e.target.closest("a")) setMenu(false); });
+document.addEventListener("keydown", e => { if(e.key === "Escape") setMenu(false); });
+document.addEventListener("click", e => { if(rail.classList.contains("open") && !rail.contains(e.target) && e.target !== menuBtn && !menuBtn.contains(e.target)) setMenu(false); });
+
+/* ---------------- search + reading bar ---------------- */
+const sIn = $("#searchIn"), sMsg = $("#searchMsg");
+const idx = sections.map(s => [s, s.textContent.toLowerCase()]);
+const introBits = [$("#top"), ...$$(".col > section.box")];
+sIn.addEventListener("input", () => {
+  const raw = sIn.value.trim(), term = raw.toLowerCase();
+  let n = 0;
+  idx.forEach(([s, txt]) => {
+    const hit = !term || txt.includes(term);
+    s.hidden = !hit; if(hit && term) n++;
+    const l = links.get(s.id); if(l) l.parentElement.hidden = !hit;
+  });
+  introBits.forEach(el => { if(el) el.hidden = !!term; });
+  $$(".line-group").forEach(g => g.hidden = !g.querySelector("li:not([hidden])"));
+  sMsg.textContent = !term ? "" : n ? `${n} stop${n === 1 ? "" : "s"} mention "${raw}"` : `Nothing mentions "${raw}". Try a shorter word.`;
+  if(term) window.scrollTo(0, 0);
+});
+sIn.addEventListener("keydown", e => { if(e.key === "Escape"){ sIn.value = ""; sIn.dispatchEvent(new Event("input")); } });
+const readBar = $("#readBar");
+const onScroll = () => { const h = document.documentElement.scrollHeight - innerHeight; readBar.style.transform = `scaleX(${h > 0 ? Math.min(1, scrollY / h) : 0})`; };
+addEventListener("scroll", onScroll, {passive:true}); addEventListener("resize", onScroll); onScroll();
+
+/* ---------------- drill data ---------------- */
+const TOPICS = ["Modules","process","path"];
+/* ---------------- drill data ---------------- */
+const ALL_BLANKS = [
+ {t:"JavaScript",p:"Get the one student whose id is 2 (or undefined if there isn't one).",c:'const student = students.{{find}}(s => s.id === 2);'},
+ {t:"JavaScript",p:"Find a student's position so you can delete them, handling not found.",c:'const index = students.{{findIndex}}(s => s.id === id);\nif (index === {{-1}}) return res.status(404).json({ error: "Not found" });\nstudents.{{splice}}(index, 1);'},
+ {t:"JavaScript",p:"Keep only passing students, then turn the list into names.",c:'const names = students\n  .{{filter}}(s => s.marks >= 50)\n  .{{map}}(s => s.name);'},
+ {t:"JavaScript",p:"Object to JSON text, and back again.",c:'const text = JSON.{{stringify}}(obj);\nconst back = JSON.{{parse}}(text);'},
+ {t:"JavaScript",p:"Wait for a promise inside a function, catching failures.",c:'{{async}} function load() {\n  {{try}} {\n    const data = {{await}} fsp.readFile(file, "utf8");\n  } {{catch}} (err) {\n    console.error(err.message);\n  }\n}'},
+ {t:"JavaScript",p:"Pull fields out of the body, and copy an object with one field changed.",c:'const { name, email } = req.{{body}};\nconst updated = { {{...}}book, title: "New title" };'},
+ {t:"Modules",p:"Export two functions from math.js and import one in app.js (CommonJS).",c:'// math.js\n{{module.exports}} = { add, sub };\n\n// app.js\nconst { add } = {{require}}("{{./math|./math.js}}");'},
+ {t:"Modules",p:"The same idea with ES Modules.",c:'// math.js\n{{export}} const add = (a, b) => a + b;\n\n// app.js\n{{import}} { add } {{from}} "./math.js";'},
+ {t:"Node.js",p:"Create package.json, add Express, and add nodemon as a dev-only dependency.",c:'npm {{init}} -y\nnpm {{install|i}} express\nnpm install {{-D|--save-dev}} nodemon'},
+ {t:"process",p:"Get only the user's arguments, read the port from the environment, and stop with an error code.",c:'const args = process.argv.{{slice}}({{2}});\nconst port = process.{{env}}.PORT || 3000;\nif (!args[0]) process.{{exit}}(1);'},
+ {t:"path",p:"Build a path to data/todos.json next to this file, and get its extension.",c:'const path = require("path");\nconst file = path.{{join}}({{__dirname}}, "data", "todos.json");\npath.{{extname}}(file); // ".json"'},
+ {t:"Events",p:"Create an emitter, listen for order, then fire it with data.",c:'const EventEmitter = require("{{events}}");\nconst shop = {{new}} EventEmitter();\nshop.{{on}}("order", (item) => console.log(item));\nshop.{{emit}}("order", "pizza");'},
+ {t:"readline",p:"Ask for a name in the terminal, print it, and let the program exit.",c:'const rl = readline.{{createInterface}}({\n  input: process.{{stdin}},\n  output: process.{{stdout}}\n});\nrl.{{question}}("Name? ", (name) => {\n  console.log(name);\n  rl.{{close}}();\n});'},
+ {t:"fs",p:"Read a text file with a callback, handling the error first.",c:'fs.readFile(file, "{{utf8|utf-8}}", ({{err}}, data) => {\n  if (err) {{return}} console.error(err.message);\n  console.log(data);\n});'},
+ {t:"fs",p:"Replace a file's contents, then add a line to the end (sync versions).",c:'fs.{{writeFileSync}}(file, "first line\\n");\nfs.{{appendFileSync}}(file, "second line\\n");'},
+ {t:"http",p:"A raw Node server that answers every request with JSON on port 3000.",c:'const http = require("http");\nconst server = http.{{createServer}}((req, res) => {\n  res.{{writeHead}}(200, { "Content-Type": "{{application/json}}" });\n  res.{{end}}(JSON.stringify({ ok: true }));\n});\nserver.{{listen}}(3000);'},
+ {t:"Express routing",p:"Create an app that can read JSON request bodies.",c:'const express = require("express");\nconst app = {{express()}};\napp.{{use}}(express.{{json}}());'},
+ {t:"Express routing",p:"Read a route parameter as a number, and a query string value.",c:'app.get("/users/{{:id}}", (req, res) => {\n  const id = {{Number}}(req.{{params}}.id);\n  const { sort } = req.{{query}};\n  res.json({ id, sort });\n});'},
+ {t:"Express routing",p:"Send the right responses: not found, created, and deleted with no body.",c:'return res.{{status}}(404).{{json}}({ error: "Not found" });\nres.status({{201}}).json(newBook);\nres.{{sendStatus}}({{204}});'},
+ {t:"REST",p:"Wire up the REST routes for a single book.",c:'app.{{get}}("/api/books/:id", getBook);       // read one\napp.{{patch}}("/api/books/:id", updateBook);  // change some fields\napp.{{put}}("/api/books/:id", replaceBook);   // replace it entirely\napp.{{delete}}("/api/books/:id", deleteBook); // remove it'},
+ {t:"Middleware",p:"A logger that lets the request carry on.",c:'const logger = (req, res, {{next}}) => {\n  console.log(req.method, req.url);\n  {{next()}};\n};\napp.{{use}}(logger);'},
+ {t:"Middleware",p:"A central error handler, registered last.",c:'app.use(({{err}}, req, res, {{next}}) => {\n  res.status(err.status || {{500}}).json({ error: err.message });\n});'},
+ {t:"Router",p:"A router file, mounted at /api/books.",c:'const router = express.{{Router}}();\nrouter.get("{{/}}", getAll);   // GET /api/books\n{{module.exports}} = router;\n\n// index.js\napp.use("{{/api/books}}", router);'},
+ {t:"Static files",p:"Serve the public folder, and send one file from a route.",c:'app.use(express.{{static}}(path.join(__dirname, "{{public}}")));\napp.get("/help", (req, res) => {\n  res.{{sendFile}}(path.join(__dirname, "views", "help.html"));\n});'},
+ {t:"Prisma model",p:"A User model: auto id, unique email, optional name, list of posts.",c:'model User {\n  id    Int    {{@id}} @default({{autoincrement()}})\n  email String {{@unique}}\n  name  String{{?}}\n  posts Post{{[]}}\n}'},
+ {t:"Prisma model",p:"The foreign key side of a one-to-many relation.",c:'model Post {\n  id       Int  @id @default(autoincrement())\n  author   User {{@relation}}(fields: [{{authorId}}], references: [{{id}}])\n  authorId {{Int}}\n}'},
+ {t:"Prisma migrate",p:"Set up Prisma, create and apply the first migration, then open the GUI.",c:'npx prisma {{init}}\nnpx prisma {{migrate dev}} --name init\nnpx prisma {{studio}}'}
+];
+
+const ALL_BUGS = [
+ {t:"Express routing",p:"GET /api/users/2 returns 404, even though users contains { id: 2, ... }.",c:['app.get("/api/users/:id", (req, res) => {','  const user = users.find(u => u.id === req.params.id);','  if (!user) return res.status(404).json({ error: "Not found" });','  res.json(user);','});'],a:[1],e:"req.params.id is the string \"2\", and 2 === \"2\" is false, so find never matches.",f:'  const user = users.find(u => u.id === Number(req.params.id));'},
+ {t:"Express routing",p:"Requesting a missing user crashes the server: Cannot set headers after they are sent.",c:['app.get("/api/users/:id", (req, res) => {','  const user = users.find(u => u.id === Number(req.params.id));','  if (!user) res.status(404).json({ error: "Not found" });','  res.json(user);','});'],a:[2],e:"Without return, the function carries on after sending the 404 and calls res.json a second time.",f:'  if (!user) return res.status(404).json({ error: "Not found" });'},
+ {t:"Express routing",p:"POST /api/books fails because req.body is undefined.",c:['const app = express();','app.post("/api/books", (req, res) => {','  const { title } = req.body;','  res.status(201).json({ title });','});','app.use(express.json());','app.listen(3000);'],a:[5],e:"Middleware runs in the order it is registered. express.json() comes after the route, so the body is never parsed for it.",f:'const app = express();\napp.use(express.json());   // before the routes'},
+ {t:"Express routing",p:"GET /users/me never reaches getMe.",c:['app.get("/users/:id", getUser);','app.get("/users/me", getMe);'],a:[0,1],e:"Express runs the first route that matches. /users/:id matches /users/me with id = \"me\", so the second route is never reached.",f:'app.get("/users/me", getMe);   // specific route first\napp.get("/users/:id", getUser);'},
+ {t:"Middleware",p:"Every request hangs until the browser gives up.",c:['app.use((req, res, next) => {','  console.log(req.method, req.url);','});','app.get("/", (req, res) => res.send("home"));'],a:[1,2],e:"The middleware neither responds nor calls next(), so the request never reaches the route.",f:'app.use((req, res, next) => {\n  console.log(req.method, req.url);\n  next();\n});'},
+ {t:"Middleware",p:"Errors passed to next(err) are not handled by this function.",c:['app.use((err, req, res) => {','  res.status(500).json({ error: err.message });','});'],a:[0],e:"Express only treats a middleware as an error handler when it has exactly four parameters.",f:'app.use((err, req, res, next) => {'},
+ {t:"Modules",p:"app.js runs require(\"./math\").add(1, 2) and gets: add is not a function.",c:['const add = (a, b) => a + b;','exports = { add };'],a:[1],e:"Reassigning exports only re-points the local shortcut. Node returns module.exports, which is still empty.",f:'module.exports = { add };'},
+ {t:"process",p:"node add.js 2 3 prints 23 instead of 5.",c:['const [a, b] = process.argv.slice(2);','console.log(a + b);'],a:[1],e:"argv values are always strings, so + joins them as text.",f:'console.log(Number(a) + Number(b));'},
+ {t:"Events",p:"Ready! is never printed.",c:['const e = new EventEmitter();','e.emit("ready");','e.on("ready", () => console.log("Ready!"));'],a:[1,2],e:"The event fires before anyone is listening, so it is lost. Register with on() first.",f:'e.on("ready", () => console.log("Ready!"));\ne.emit("ready");'},
+ {t:"readline",p:"The greeting prints, but the program never exits.",c:['const rl = readline.createInterface({ input: process.stdin, output: process.stdout });','rl.question("Name? ", (name) => {','  console.log(`Hi ${name}`);','});'],a:[2,3],e:"The interface keeps listening to the keyboard until rl.close() is called.",f:'rl.question("Name? ", (name) => {\n  console.log(`Hi ${name}`);\n  rl.close();\n});'},
+ {t:"fs",p:"It prints <Buffer 48 65 6c 6c 6f> instead of the text.",c:['const data = fs.readFileSync(path.join(__dirname, "notes.txt"));','console.log(data);'],a:[0],e:"Without an encoding, readFileSync returns raw bytes (a Buffer).",f:'const data = fs.readFileSync(path.join(__dirname, "notes.txt"), "utf8");'},
+ {t:"fs",p:"Sometimes the file ends up with only the first line in it.",c:['fs.writeFile(file, "first line\\n", (err) => { if (err) console.error(err); });','fs.appendFile(file, "second line\\n", (err) => { if (err) console.error(err); });'],a:[0,1],e:"The two callback calls run at the same time, so the append can finish first and then the write wipes it. Nest the append inside the write's callback, or use the Sync versions.",f:'fs.writeFile(file, "first line\\n", (err) => {\n  if (err) return console.error(err);\n  fs.appendFile(file, "second line\\n", (err) => { if (err) console.error(err); });\n});'},
+ {t:"http",p:"The server throws a TypeError on the first request.",c:['http.createServer((req, res) => {','  res.writeHead(200, { "Content-Type": "application/json" });','  res.end({ ok: true });','}).listen(3000);'],a:[2],e:"res.end only accepts a string or a Buffer, not an object.",f:'  res.end(JSON.stringify({ ok: true }));'},
+ {t:"Router",p:"GET /api/books/5 gives 404, but /api/books/api/books/5 works.",c:['// routes/books.js','router.get("/api/books/:id", getBook);','module.exports = router;','// index.js','app.use("/api/books", router);'],a:[1],e:"Router paths are relative to where the router is mounted, so the prefix ends up in the URL twice.",f:'router.get("/:id", getBook);'},
+ {t:"Static files",p:"The page loads with no styling: the CSS request is a 404.",c:['app.use(express.static(path.join(__dirname, "public")));','// in public/index.html:','// <link rel="stylesheet" href="/public/style.css">'],a:[2],e:"The folder name is not part of the URL. public/style.css is served at /style.css.",f:'// <link rel="stylesheet" href="/style.css">'},
+ {t:"REST",p:"After deleting course 1, the next new course gets an id that already exists.",c:['app.post("/api/courses", (req, res) => {','  const course = { id: courses.length + 1, ...req.body };','  courses.push(course);','  res.status(201).json(course);','});'],a:[1],e:"courses.length shrinks after a delete, so length + 1 can repeat an existing id. Keep a separate counter.",f:'let nextId = 3;   // declared once, above the routes\nconst course = { id: nextId++, ...req.body };'},
+ {t:"MVC",p:"This service breaks the MVC rules. Click a line that belongs in the controller.",c:['// services/book.service.js','exports.getById = (id, res) => {','  const book = books.find(b => b.id === id);','  if (!book) return res.status(404).json({ error: "Not found" });','  return book;','};'],a:[1,3],e:"Services never touch res. Return the data (or undefined) and let the controller choose the status code.",f:'exports.getById = (id) => books.find(b => b.id === id);\n// controller: if (!book) return res.status(404).json({ error: "Not found" });'},
+ {t:"Prisma migrate",p:"The User table already has rows. After adding age, migrate dev fails.",lang:"prisma",c:['model User {','  id    Int    @id @default(autoincrement())','  email String @unique','  age   Int','}'],a:[3],e:"Existing rows have no value for a new required column. Make it optional or give it a default.",f:'  age   Int?    // or: age Int @default(0)'},
+ {t:"Prisma model",p:"prisma validate reports an error here (assume User already has posts Post[]).",lang:"prisma",c:['model Post {','  id     Int  @id @default(autoincrement())','  author User @relation(fields: [authorId], references: [id])','}'],a:[2,3],e:"The relation points at authorId, but that field is never declared. The foreign key column must exist in the model.",f:'  author   User @relation(fields: [authorId], references: [id])\n  authorId Int'}
+];
+
+const NEW_BLANKS = [
+ {t:"Modules",p:"ES module: import a core module with the node: prefix, and get this file's folder.",c:'import fs from "{{node:fs}}";\nconst here = import.meta.{{dirname}};'},
+ {t:"process",p:"Load .env with no package, read the port with a fallback, and fail without killing pending work.",c:'process.{{loadEnvFile}}();\nconst port = Number(process.env.PORT {{??}} 3000);\nif (!port) process.{{exitCode}} = 1;'},
+ {t:"path",p:"Get the parts of /a/b/app.js.",c:'path.{{basename}}("/a/b/app.js")    // "app.js"\npath.{{dirname}}("/a/b/app.js")     // "/a/b"\npath.{{extname}}("/a/b/app.js")     // ".js"\npath.{{parse}}("/a/b/app.js").name  // "app"'}
+];
+const NEW_BUGS = [
+ {t:"Modules",p:"Error [ERR_MODULE_NOT_FOUND]: Cannot find module './math'",c:['// package.json has "type": "module"','import { add } from "./math";','console.log(add(2, 3));'],a:[1],e:"ES modules need the full file name, extension included, for local files. CommonJS lets you leave it off; ESM doesn't.",f:'import { add } from "./math.js";'},
+ {t:"process",p:"node greet.js Asha prints: Hello, /home/me/greet.js",c:['const name = process.argv[1];','console.log(`Hello, ${name}`);'],a:[0],e:"argv[0] is the node path and argv[1] is the script path. Your first argument is argv[2].",f:'const name = process.argv[2];   // or: const [name] = process.argv.slice(2);'},
+ {t:"path",p:"Works on the author's Mac, breaks on a classmate's Windows laptop.",c:['const file = __dirname + "/data/" + "todos.json";','const text = fs.readFileSync(file, "utf8");'],a:[0],e:"Gluing paths with \"/\" hard-codes one OS's separator. path.join uses the right one everywhere and tidies the result.",f:'const file = path.join(__dirname, "data", "todos.json");'},
+ {t:"path",p:"Crashes with ENOENT when run from the project root, but works when run from inside src/.",c:['// src/app.js','const data = fs.readFileSync("config.json", "utf8");'],a:[1],e:"A relative path is resolved from process.cwd(), the folder you ran node from, not from the file's own folder.",f:'const data = fs.readFileSync(path.join(__dirname, "config.json"), "utf8");'}
+];
+const NEW_PARSONS = [
+ { t: "process", p: "Order a CLI that greets the user, or prints usage and fails.", c: [
+    'const [name] = process.argv.slice(2);',
+    'if (!name) {',
+    '  console.log("Usage: node greet.js <name>");',
+    '  process.exit(1);',
+    '}',
+    'console.log(`Hi ${name}`);' ],
+    why: "Read the argument first, check it before using it, and stop with a non-zero code if it's missing. The greeting runs only when a name was given." },
+ { t: "Modules", p: "Order the lines of two files: math.js exports add, app.js uses it.", c: [
+    '// math.js',
+    'const add = (a, b) => a + b;',
+    'module.exports = { add };',
+    '// app.js',
+    'const { add } = require("./math");',
+    'console.log(add(2, 3));' ],
+    why: "A function must be defined before you export it, and app.js must require the module before calling what it exports." }
+];
+/* ---------------- drill builders ---------------- */
+const norm = s => String(s).replace(/[`'’‘]/g, '"').replace(/;+\s*$/, "").replace(/\s+/g, " ").replace(/\s*([()[\]{},.:=])\s*/g, "$1").trim();
+function makeBlank(d, i, onResult){
+  const el = document.createElement("div"); el.className = "drill";
+  const answers = []; let code = "";
+  d.c.split(/\{\{(.*?)\}\}/).forEach((part, k) => {
+    if(k % 2 === 0){ code += esc(part); return; }
+    const alts = part.split("|"); answers.push(alts);
+    code += `<input class="blank" type="text" spellcheck="false" autocapitalize="off" autocorrect="off" autocomplete="off" aria-label="Blank ${answers.length}" style="width:${Math.max(alts[0].length, 4) + 2}ch">`;
+  });
+  el.innerHTML = `<div class="dh"><span>Drill ${i + 1} · ${esc(d.t)}</span></div><div class="dp">${esc(d.p)}</div><pre><code>${code}</code></pre><div class="row"><button class="btn primary" type="button" data-a="check">Check</button><button class="btn" type="button" data-a="show">Show answers</button><button class="btn" type="button" data-a="again">Try again</button></div><div class="dfb" aria-live="polite"></div>`;
+  const inputs = $$("input.blank", el), fb = $(".dfb", el);
+  let scored = false;
+  const score = ok => { if(!scored){ scored = true; onResult(ok); } };
+  const check = () => {
+    if(!scored && inputs.some(x => !x.value.trim())){ fb.innerHTML = `Fill every blank first, or press <b>Show answers</b>.`; return; }
+    let wrong = 0;
+    inputs.forEach((inp, k) => {
+      const ok = answers[k].some(a => norm(a) === norm(inp.value));
+      inp.classList.toggle("ok", ok); inp.classList.toggle("no", !ok);
+      if(!ok) wrong++;
+    });
+    fb.innerHTML = wrong ? `<span class="bad">✗ ${wrong} blank${wrong === 1 ? "" : "s"} wrong.</span> Fix the red ones, or press Show answers.` : `<span class="good">✓ All correct.</span>`;
+    score(wrong === 0);
+  };
+  el.addEventListener("keydown", e => { if(e.key === "Enter" && e.target.matches("input.blank")){ e.preventDefault(); check(); } });
+  $('[data-a="check"]', el).addEventListener("click", check);
+  $('[data-a="show"]', el).addEventListener("click", () => {
+    score(false);
+    inputs.forEach((inp, k) => { if(!answers[k].some(a => norm(a) === norm(inp.value))){ inp.value = answers[k][0]; inp.classList.remove("ok"); inp.classList.add("no"); } else { inp.classList.add("ok"); } });
+    fb.innerHTML = `Red blanks now show the answer. Press <b>Try again</b> to type it from memory.`;
+  });
+  $('[data-a="again"]', el).addEventListener("click", () => {
+    inputs.forEach(inp => { inp.value = ""; inp.classList.remove("ok", "no"); });
+    fb.innerHTML = scored ? `<span style="color:var(--muted)">Practice round: this won't change your score.</span>` : "";
+    inputs[0].focus();
+  });
+  return el;
+}
+function makeBug(b, i, onResult){
+  const el = document.createElement("div"); el.className = "drill";
+  el.innerHTML = `<div class="dh"><span>Bug ${i + 1} · ${esc(b.t)}</span></div><div class="dp">Symptom: ${esc(b.p)}</div><div class="bugbox">${b.c.map((l, k) => `<button type="button" class="bugline" data-k="${k}" aria-label="Line ${k + 1}: ${esc(l)}"><span class="ln">${k + 1}</span>${hl(l, b.lang || "js")}</button>`).join("")}</div><div class="dfb" aria-live="polite"></div><div class="row"><button class="btn" type="button" data-a="show">Show the bug</button></div>`;
+  const fb = $(".dfb", el), lines = $$(".bugline", el);
+  let scored = false, solved = false;
+  const reveal = () => {
+    solved = true;
+    b.a.forEach(k => lines[k].classList.add("hit"));
+    lines.forEach(x => x.disabled = true);
+    fb.innerHTML = `<b>Why:</b> ${esc(b.e)}<pre><code>${hl(b.f, b.lang || "js")}</code></pre>`;
+    $('[data-a="show"]', el).disabled = true;
+  };
+  lines.forEach(btn => btn.addEventListener("click", () => {
+    if(solved) return;
+    const k = +btn.dataset.k;
+    if(b.a.includes(k)){
+      if(!scored){ scored = true; onResult(true); }
+      reveal(); fb.insertAdjacentHTML("afterbegin", `<span class="good">✓ Found it.</span> `);
+    } else {
+      if(!scored){ scored = true; onResult(false); }
+      btn.classList.add("miss");
+      fb.innerHTML = `<span class="bad">✗ Line ${k + 1} is fine.</span> Look again, or press Show the bug.`;
+    }
+  }));
+  $('[data-a="show"]', el).addEventListener("click", () => { if(!scored){ scored = true; onResult(false); } reveal(); });
+  return el;
+}
+
+/* ---------------- Put the lines in order (Parsons) ---------------- */
+const ALL_PARSONS = [
+  { t: "Express app skeleton", p: "Put the lines of this Express app in the right order.", c: [
+    'const express = require("express");',
+    'const app = express();',
+    'app.use(express.json());',
+    'app.get("/api/books", getAll);',
+    'app.use((req, res) => res.status(404).json({ error: "Not found" }));',
+    'app.use((err, req, res, next) => res.status(500).json({ error: err.message }));',
+    'app.listen(3000);' ],
+    why: "The JSON parser must run before the routes, and the 404 handler and then the error handler come after all routes so they only catch what nothing else handled." },
+  { t: "DELETE handler", p: "Order the lines of a DELETE handler that follows the recipe: find, 404 if missing, remove, reply.", c: [
+    'app.delete("/api/books/:id", (req, res) => {',
+    '  const id = Number(req.params.id);',
+    '  const i = books.findIndex(b => b.id === id);',
+    '  if (i === -1) return res.status(404).json({ error: "Not found" });',
+    '  books.splice(i, 1);',
+    '  res.sendStatus(204);',
+    '});' ],
+    why: "You must convert the id and find the index before you can check for a 404, and you only splice and send 204 once you know the book exists." },
+  { t: "readline", p: "Order the lines of a program that asks for a name and greets the user.", c: [
+    'const readline = require("readline");',
+    'const rl = readline.createInterface({ input: process.stdin, output: process.stdout });',
+    'rl.question("Name? ", (name) => {',
+    '  console.log(`Hi ${name}`);',
+    '  rl.close();',
+    '});' ],
+    why: "The interface has to exist before you can ask a question, and rl.close() goes last inside the callback so the program can exit once the answer is handled." },
+  { t: "Events", p: "Order the lines so the listener fires.", c: [
+    'const EventEmitter = require("events");',
+    'const shop = new EventEmitter();',
+    'shop.on("order", (item) => console.log(item));',
+    'shop.emit("order", "pizza");' ],
+    why: "Register on() before emit(): an event emitted with no listener attached yet is simply lost." },
+  { t: "Prisma setup", p: "Order the terminal steps to set up Prisma in a project.", c: [
+    'npm install prisma --save-dev',
+    'npm install @prisma/client',
+    'npx prisma init',
+    '# edit prisma/schema.prisma and add your models',
+    'npx prisma migrate dev --name init' ],
+    why: "Prisma must be installed before init can run, and you define your models in the schema before migrate can turn them into a database." }
+];
+function makeParsons(pz, i, onResult){
+  const el = document.createElement("div"); el.className = "drill";
+  const n = pz.c.length, pre = "white-space:pre";
+  el.innerHTML = `<div class="dh"><span>Puzzle ${i + 1} · ${esc(pz.t)}</span></div><div class="dp">${esc(pz.p)}</div><div class="qscore">Lines to place</div><div class="bugbox" data-r="pool"></div><div class="qscore">Your answer</div><div class="bugbox" data-r="ans"></div><div class="dfb" aria-live="polite"></div><div class="row"><button class="btn primary" type="button" data-a="check">Check</button><button class="btn" type="button" data-a="show">Show answer</button><button class="btn" type="button" data-a="reset">Reset</button></div>`;
+  const poolEl = $('[data-r="pool"]', el), ansEl = $('[data-r="ans"]', el), fb = $(".dfb", el);
+  let pool, ans, scored = false, locked = false;
+  const shuffle = () => {
+    let a, tries = 0;
+    do {
+      a = pz.c.map((_, k) => k);
+      for(let k = a.length - 1; k > 0; k--){ const j = Math.floor(Math.random() * (k + 1)); [a[k], a[j]] = [a[j], a[k]]; }
+      tries++;
+    } while(tries < 20 && a.every((k, pos) => pz.c[k] === pz.c[pos]));
+    return a;
+  };
+  const btn = (k, pos, cls) => `<button type="button" class="bugline${cls ? " " + cls : ""}" data-k="${k}" style="${pre}" aria-label="${pos != null ? "Placed line " + (pos + 1) + ": " : "Add line: "}${esc(pz.c[k].trim())}"${locked ? " disabled" : ""}>${pos != null ? `<span class="ln">${pos + 1}</span>` : ""}${hl(pz.c[k], "js")}</button>`;
+  const paint = marks => {
+    poolEl.innerHTML = pool.length ? pool.map(k => btn(k, null)).join("") : `<span class="qscore" style="padding:0 12px">All lines placed.</span>`;
+    ansEl.innerHTML = ans.length ? ans.map((k, pos) => btn(k, pos, marks ? marks[pos] : "")).join("") : `<span class="qscore" style="padding:0 12px">Tap lines above to build your answer.</span>`;
+  };
+  const reset = () => { pool = shuffle(); ans = []; locked = false; fb.innerHTML = ""; paint(); };
+  poolEl.addEventListener("click", e => {
+    const b = e.target.closest(".bugline"); if(!b || locked) return;
+    const k = +b.dataset.k; pool.splice(pool.indexOf(k), 1); ans.push(k); fb.innerHTML = ""; paint();
+  });
+  ansEl.addEventListener("click", e => {
+    const b = e.target.closest(".bugline"); if(!b || locked) return;
+    const pos = $$(".bugline", ansEl).indexOf(b); if(pos < 0) return;
+    pool.push(ans.splice(pos, 1)[0]); fb.innerHTML = ""; paint();
+  });
+  $('[data-a="check"]', el).addEventListener("click", () => {
+    if(locked) return;
+    if(ans.length < n){ fb.innerHTML = `<span class="bad">Place all ${n} lines first</span> (${ans.length} placed).`; return; }
+    const marks = ans.map((k, pos) => pz.c[k] === pz.c[pos] ? "hit" : "miss");
+    const ok = marks.every(m => m === "hit");
+    if(!scored){ scored = true; onResult(ok); }
+    paint(marks);
+    fb.innerHTML = `${ok ? '<span class="good">✓ Correct order.</span>' : '<span class="bad">✗ Not quite: red lines are in the wrong place.</span>'} <b>Why:</b> ${esc(pz.why)}`;
+  });
+  $('[data-a="show"]', el).addEventListener("click", () => {
+    if(!scored){ scored = true; onResult(false); }
+    pool = []; ans = pz.c.map((_, k) => k); locked = true;
+    paint(ans.map(() => "hit"));
+    fb.innerHTML = `Correct order shown. <b>Why:</b> ${esc(pz.why)}`;
+  });
+  $('[data-a="reset"]', el).addEventListener("click", reset);
+  reset();
+  return el;
+}
+
+/* ---------------- practice: filter + render ---------------- */
+function track(){}  /* the mistakes deck is not part of the video subsets */
+const BLANKS = ALL_BLANKS.filter(d => TOPICS.includes(d.t)).concat(NEW_BLANKS);
+const BUGS = ALL_BUGS.filter(d => TOPICS.includes(d.t)).concat(NEW_BUGS);
+const PARSONS = ALL_PARSONS.filter(d => TOPICS.includes(d.t)).concat(NEW_PARSONS);
+function renderBlanks(){
+  const list = $("#blankList"); if(!list) return;
+  let done = 0, right = 0; list.innerHTML = "";
+  const paint = () => $("#blankScore").textContent = done ? `${right} of ${done} drills correct first time · ${BLANKS.length - done} left` : `${BLANKS.length} drills`;
+  BLANKS.forEach((d, i) => list.appendChild(makeBlank(d, i, ok => { done++; if(ok) right++; paint(); })));
+  paint();
+}
+function renderBugs(){
+  const list = $("#bugList"); if(!list) return;
+  let done = 0, right = 0; list.innerHTML = "";
+  const paint = () => $("#bugScore").textContent = done ? `${right} of ${done} found on the first click · ${BUGS.length - done} left` : `${BUGS.length} bugs`;
+  BUGS.forEach((b, i) => list.appendChild(makeBug(b, i, ok => { done++; if(ok) right++; paint(); })));
+  paint();
+}
+function renderParsons(){
+  const list = $("#parList"); if(!list) return;
+  let done = 0, right = 0; list.innerHTML = "";
+  const paint = () => $("#parScore").textContent = done ? `${right} of ${PARSONS.length} right first time · ${PARSONS.length - done} left` : `${PARSONS.length} puzzles`;
+  PARSONS.forEach((pz, i) => list.appendChild(makeParsons(pz, i, ok => { done++; if(ok) right++; paint(); })));
+  paint();
+}
+renderBlanks(); renderBugs(); renderParsons();
+if($("#blankReset")) $("#blankReset").addEventListener("click", renderBlanks);
+if($("#bugReset")) $("#bugReset").addEventListener("click", renderBugs);
+if($("#parReset")) $("#parReset").addEventListener("click", renderParsons);
+
+/* ---------------- quizzes ---------------- */
+function questionEl(q, onAnswer){
+  const d = document.createElement("div"); d.className = "q";
+  d.innerHTML = `<div class="qt">${esc(q.q)}</div>${q.c ? `<pre><code data-lang="js">${esc(q.c)}</code></pre>` : ""}<div class="opts">${q.o.map((o,i)=>`<button class="opt" type="button" data-i="${i}"><span class="k">${"ABCD"[i]}</span><span>${esc(o)}</span></button>`).join("")}</div><div class="explain"><b>Why:</b> ${esc(q.e)}</div>`;
+  const code = d.querySelector("code"); if(code) hlEl(code);
+  d.querySelectorAll(".opt").forEach(b => b.addEventListener("click", () => {
+    if(d.classList.contains("answered")) return;
+    const i = +b.dataset.i; d.classList.add("answered");
+    d.querySelectorAll(".opt").forEach(x => { x.disabled = true; if(+x.dataset.i === q.a) x.classList.add("right"); });
+    if(i !== q.a) b.classList.add("wrong");
+    onAnswer(i === q.a);
+  }));
+  return d;
+}
+$$(".quiz[data-quiz]").forEach(box => {
+  const list = QZ[box.dataset.quiz] || [];
+  let right = 0, answered = 0;
+  box.innerHTML = `<div class="qhead"><strong>Check yourself</strong><span class="qscore" aria-live="polite">0 / ${list.length} answered</span></div>`;
+  const score = box.querySelector(".qscore");
+  list.forEach((q, qi) => box.appendChild(questionEl(q, ok => {
+    track(`q:${box.dataset.quiz}:${qi}`, ok);
+    answered++; if(ok) right++;
+    score.textContent = answered < list.length ? `${right} correct of ${answered} answered` : `Final: ${right} / ${list.length}${right === list.length ? " — perfect" : " — reread the explanations above"}`;
+  })));
+  const rb = document.createElement("button"); rb.className = "btn"; rb.type = "button"; rb.textContent = "Reset quiz"; rb.style.marginTop = "8px";
+  rb.addEventListener("click", () => {
+    right = 0; answered = 0; score.textContent = `0 / ${list.length} answered`;
+    box.querySelectorAll(".q").forEach(q => { q.classList.remove("answered"); q.querySelectorAll(".opt").forEach(o => { o.disabled = false; o.classList.remove("right","wrong"); }); });
+  });
+  box.appendChild(rb);
+});
+
+/* ================= LABS ================= */
+const con = (el, html) => { el.innerHTML = html; };
+/* 4. modules toggle */
+(function(){
+  const V = {
+    cjs:['// math.js\nconst add = (a, b) => a + b;\nconst PI = 3.14;\n\nmodule.exports = { add, PI };','// app.js\nconst { add, PI } = require("./math");\nconst fs = require("fs");\n\nconsole.log(add(2, 3), PI);',"CommonJS: the default in Node. require() can go anywhere and runs synchronously. Extension optional."],
+    esm:['// math.js\nexport const add = (a, b) => a + b;\nexport const PI = 3.14;\n\n// or: export default add;','// app.js\nimport { add, PI } from "./math.js";\nimport fs from "fs";\n\nconsole.log(add(2, 3), PI);','ES Modules: needs "type": "module" in package.json (or .mjs). Imports go at the top, and local paths need the .js extension.']
+  };
+  function show(k){
+    $("#modA").textContent = V[k][0]; $("#modB").textContent = V[k][1]; hlEl($("#modA")); hlEl($("#modB"));
+    $("#modNote").textContent = V[k][2];
+    $$("#modLab [data-mod]").forEach(b => { const on = b.dataset.mod === k; b.classList.toggle("primary", on); b.setAttribute("aria-selected", on); });
+  }
+  $$("#modLab [data-mod]").forEach(b => b.addEventListener("click", () => show(b.dataset.mod)));
+  show("cjs");
+})();
+/* 5. argv */
+(function(){
+  const tokenize = s => { const out = []; const re = /"([^"]*)"|'([^']*)'|(\S+)/g; let m; while((m = re.exec(s))) out.push(m[1] ?? m[2] ?? m[3]); return out; };
+  function run(){
+    const t = tokenize($("#argvIn").value);
+    if(!t.length || t[0] !== "node"){ con($("#argvView"), ""); con($("#argvOut"), `<span class="err">Commands start with "node", e.g. node app.js hello</span>`); return; }
+    if(t.length < 2){ con($("#argvView"), ""); con($("#argvOut"), `<span class="dim">Running "node" alone opens the REPL. Add a file name.</span>`); return; }
+    const argv = ["/usr/local/bin/node", "/home/me/project/" + t[1], ...t.slice(2)];
+    con($("#argvView"), `<div class="row">${argv.map((a, i) => `<span style="display:inline-flex;flex-direction:column;align-items:center;gap:2px"><span class="chip${i >= 2 ? " hot" : ""}">"${esc(a)}"</span><small style="color:var(--muted)">[${i}]</small></span>`).join("")}</div>`);
+    const args = argv.slice(2);
+    let extra = "";
+    const nums = args.filter(a => a.trim() !== "" && !isNaN(Number(a)));
+    if(nums.length >= 2){
+      extra = `\n<span class="dim">// argv values are strings:</span>\nprocess.argv[${argv.indexOf(nums[0])}] + process.argv[${argv.indexOf(nums[1])}]  <span class="err">→ "${esc(nums[0] + nums[1])}"</span>\nNumber(…) + Number(…)       <span class="ok">→ ${Number(nums[0]) + Number(nums[1])}</span>`;
+    }
+    con($("#argvOut"), `process.argv.length <span class="ok">→ ${argv.length}</span>\nprocess.argv.slice(2) <span class="ok">→ ${esc(JSON.stringify(args))}</span>${extra}`);
+  }
+  $("#argvIn").addEventListener("input", run); run();
+})();
+/* 6. path.join */
+(function(){
+  function join(segs){
+    const parts = segs.filter(s => s !== "");
+    if(!parts.length) return ".";
+    const joined = parts.join("/");
+    const abs = joined.startsWith("/"); const trail = /\/$/.test(joined);
+    const stack = [];
+    joined.split("/").forEach(p => {
+      if(p === "" || p === ".") return;
+      if(p === ".."){ if(stack.length && stack[stack.length-1] !== "..") stack.pop(); else if(!abs) stack.push(".."); }
+      else stack.push(p);
+    });
+    let r = (abs ? "/" : "") + stack.join("/");
+    if(r === "") r = abs ? "/" : ".";
+    if(trail && r !== "/") r += "/";
+    return r;
+  }
+  function run(){
+    const raw = $("#pathIn").value.split(",").map(s => s.trim().replace(/^["']|["']$/g, ""));
+    const segs = raw.map(s => s === "__dirname" ? "/home/me/project" : s);
+    const r = join(segs);
+    con($("#pathOut"), `path.join(${raw.map(s => s === "__dirname" ? "__dirname" : `"${esc(s)}"`).join(", ")})\n<span class="ok">→ "${esc(r)}"</span>\n<span class="dim">on Windows the separators would be backslashes: "${esc(r.replace(/\//g, "\\"))}"</span>`);
+  }
+  $("#pathIn").addEventListener("input", run); run();
+})();
+
+/* new: path.parse explorer */
+(function(){
+  if(!$("#parseLab")) return;
+  function parse(p){
+    const root = p.startsWith("/") ? "/" : "";
+    let s = p;
+    while(s.length > 1 && s.endsWith("/")) s = s.slice(0, -1);
+    if(s === "/" ) return {root:"/", dir:"/", base:"", ext:"", name:""};
+    const i = s.lastIndexOf("/");
+    const base = i >= 0 ? s.slice(i + 1) : s;
+    const dir = i > 0 ? s.slice(0, i) : (i === 0 ? "/" : "");
+    const dot = base.lastIndexOf(".");
+    const ext = (dot > 0 && base !== "..") ? base.slice(dot) : "";
+    const name = ext ? base.slice(0, base.length - ext.length) : base;
+    return {root, dir, base, ext, name};
+  }
+  const presets = ["/home/me/project/src/app.js", "notes/today.md", "report.final.pdf", "/home/me/project/.env", "/home/me/project/public/"];
+  const box = $("#parsePresets");
+  presets.forEach(pr => {
+    const b = document.createElement("button"); b.className = "btn"; b.type = "button"; b.textContent = pr;
+    b.addEventListener("click", () => { $("#parseIn").value = pr; run(); });
+    box.appendChild(b);
+  });
+  const q = v => `"${esc(v)}"`;
+  function run(){
+    const p = $("#parseIn").value.trim();
+    if(!p){ con($("#parseOut"), `<span class="dim">Type a path above.</span>`); return; }
+    const r = parse(p);
+    const lines = [
+      [`path.basename(p)`, q(r.base), "last part of the path"],
+      [`path.basename(p, ${q(r.ext)})`, q(r.name), r.ext ? "same, without that extension" : "no extension to strip, so same as above"],
+      [`path.dirname(p)`, q(r.dir || "."), "the folder it's in"],
+      [`path.extname(p)`, q(r.ext), r.ext ? "includes the dot" : "no extension: dotfiles like .env don't count"],
+      [`path.isAbsolute(p)`, String(!!r.root), r.root ? "starts at the root /" : "relative: resolved from where node runs"],
+      [`path.parse(p)`, `{ root: ${q(r.root)}, dir: ${q(r.dir)}, base: ${q(r.base)}, ext: ${q(r.ext)}, name: ${q(r.name)} }`, "everything at once"]
+    ];
+    con($("#parseOut"), lines.map(([c, v, why]) => `${esc(c)}\n  <span class="ok">→ ${v}</span>  <span class="dim">// ${esc(why)}</span>`).join("\n"));
+  }
+  $("#parseIn").addEventListener("input", run); run();
+})();
+
+
+})();
+</script>
+</body>
+</html>
